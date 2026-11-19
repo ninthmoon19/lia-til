@@ -19,6 +19,11 @@ const AREAS = [
     title: "Daily Log",
     blurb: "The full log, day by day — beyond the curated public timeline.",
   },
+  {
+    href: "/private/launch-path",
+    title: "Launch Path",
+    blurb: "The two-month LeetCode-first sprint: today's plan, phases, results log and pacing.",
+  },
   // Résumés card hidden — résumé display is skipped for now. The /private/resume
   // route + backend stay dormant; re-add this card to turn it back on.
 ];

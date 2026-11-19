@@ -18,6 +18,7 @@ source of truth — so the site updates live from anywhere (including a phone) w
 | **LeetCode** | solved problems on the [0x3f 基础算法精讲](https://space.bilibili.com/206214/channel/collectiondetail?sid=842776) track — filter, sort, colored topics, 5-state status | — |
 | **Applications** | anonymized dashboard (counts only) + submissions calendar | the full ledger (fuzzy search + filters) |
 | **System Design** | study notes, one page per deck, with re-drawn theme-aware diagrams | — |
+| **Launch Path** | — | the two-month LeetCode-first sprint: phases + checklist, daily results log (stored as a "Launch Path" section of that day's Daily Log), pace KPIs and charts |
 
 A discreet 🔒 in the corner opens the private area (GitHub OAuth). Public endpoints only ever
 expose **aggregates and curated fields** — no company names, roles, salaries, or private notes.

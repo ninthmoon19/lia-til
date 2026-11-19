@@ -5,11 +5,12 @@ service exposes ONLY aggregate counts (no company names, roles, salaries).
 Private full views come later behind auth (S2).
 """
 
+import json
 import os
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import date as date_type, datetime, timedelta, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -656,6 +657,134 @@ def checkins():
     """Public — just the streak total (days checked in). Only this aggregate
     integer is exposed; the private INDEX text is never returned on this route."""
     return {"days": _checkin_days()}
+
+
+# ===========================================================================
+# One-section upsert on a day. The daily_logs `sections` dict is replaced
+# wholesale by PUT/PATCH, so a writer that owns ONE heading (the Launch Path
+# results form, the MCP append_section tool) would otherwise have to read the
+# day, merge, and write it back — and lose a concurrent edit to another heading
+# in between. This does the merge server-side, in one transaction, with the
+# row locked (FOR UPDATE on Postgres; SQLite ignores it).
+# ===========================================================================
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class SectionIn(BaseModel):
+    heading: str = Field(min_length=1, max_length=120)
+    content: str = Field(max_length=20_000)
+
+
+def _iso_week_label(date: str) -> Optional[str]:
+    """ "2026-11-18" -> "W47" (the label the rest of daily_logs uses)."""
+    try:
+        return f"W{date_type.fromisoformat(date).isocalendar()[1]:02d}"
+    except ValueError:
+        return None
+
+
+def _upsert_section(date: str, heading: str, content: str) -> dict:
+    """Set ONE heading on a day, leaving every other field and section as-is.
+    Creates the day (with only this section) if it doesn't exist yet — such a
+    day stays off the public timeline, which only lists curated days."""
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="db unavailable")
+    with SessionLocal() as session:
+        row = session.get(DailyLog, date, with_for_update=True)
+        created = row is None
+        if created:
+            row = DailyLog(date=date, week=_iso_week_label(date), done=[], leetcode=[], tags=[])
+            session.add(row)
+        # A new dict object, so SQLAlchemy sees the JSON column as changed.
+        row.sections = {**(row.sections or {}), heading: content}
+        _shadow(session, "daily_log", date, "put", _serialize_daily(row))
+        session.commit()
+        session.refresh(row)
+        return {"created": created, **_serialize_daily(row)}
+
+
+@app.put("/api/daily-log/{date}/section", dependencies=[Depends(require_daily_writer)])
+def daily_log_section_put(date: str, body: SectionIn):
+    """PRIVATE — add or overwrite one section heading on a day (see above)."""
+    if not _ISO_DATE.match(date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return _upsert_section(date, body.heading, body.content)
+
+
+# ===========================================================================
+# Launch Path plan state (the private /private/launch-path tab). One small JSON
+# document in site_meta: the checklist ticks and the plan settings. The per-day
+# results live in daily_logs as a "Launch Path" section, not here. MASTER-only:
+# the scoped daily-log key has no business moving the plan around.
+# ===========================================================================
+LAUNCH_PATH_KEY = "launch_path"
+
+
+class LaunchSettings(BaseModel):
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    days: list[Annotated[int, Field(ge=1, le=90)]] = Field(min_length=4, max_length=4)  # one length per phase
+    hours: float = Field(ge=1, le=12)
+    dayStart: str = Field(pattern=r"^\d{2}:\d{2}$")
+    dailyNew: int = Field(ge=1, le=15)
+    goal: int = Field(ge=10, le=1000)
+
+
+class LaunchTick(BaseModel):
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9-]+$")
+    done: bool
+
+
+class LaunchPathPatch(BaseModel):
+    """Either or both. `settings` replaces the stored settings; `tick` sets one
+    checklist item on or off (idempotent), so two open tabs can't undo each
+    other's ticks the way a whole-list write would."""
+    settings: Optional[LaunchSettings] = None
+    tick: Optional[LaunchTick] = None
+
+
+def _launch_doc(row: Optional[SiteMeta]) -> dict:
+    try:
+        doc = json.loads(row.value) if row and row.value else {}
+    except ValueError:
+        doc = {}
+    done = doc.get("done") if isinstance(doc.get("done"), list) else []
+    settings = doc.get("settings") if isinstance(doc.get("settings"), dict) else None
+    return {"done": [d for d in done if isinstance(d, str)], "settings": settings}
+
+
+@app.get("/api/launch-path", dependencies=[Depends(require_admin)])
+def launch_path_get():
+    """PRIVATE — {done, settings, updatedAt}; settings is null until first saved."""
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="db unavailable")
+    with SessionLocal() as session:
+        row = session.get(SiteMeta, LAUNCH_PATH_KEY)
+        return {**_launch_doc(row), "updatedAt": row.updated_at if row else None}
+
+
+@app.patch("/api/launch-path", dependencies=[Depends(require_admin)])
+def launch_path_patch(body: LaunchPathPatch):
+    """PRIVATE — apply a settings change and/or one tick; returns the new state."""
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="db unavailable")
+    with SessionLocal() as session:
+        row = session.get(SiteMeta, LAUNCH_PATH_KEY, with_for_update=True)
+        if row is None:
+            row = SiteMeta(key=LAUNCH_PATH_KEY)
+            session.add(row)
+        doc = _launch_doc(row)
+        if body.settings is not None:
+            doc["settings"] = body.settings.model_dump()
+        if body.tick is not None:
+            done = [d for d in doc["done"] if d != body.tick.id]
+            if body.tick.done:
+                done.append(body.tick.id)
+            doc["done"] = done
+        row.value = json.dumps(doc, ensure_ascii=False)
+        row.updated_at = date_type.today().isoformat()
+        _shadow(session, "launch_path", LAUNCH_PATH_KEY, "patch", doc)
+        session.commit()
+        return {**doc, "updatedAt": row.updated_at}
 
 
 # ===========================================================================
@@ -2097,24 +2226,7 @@ if FastMCP is not None and MCP_TOKEN:
         """Add or overwrite ONE section heading on a day WITHOUT touching the
         others (does the get→merge→save for you). Creates the day if it doesn't
         exist. Auto-backed up via shadow history."""
-        try:
-            existing = daily_log_get(date)
-            sections = dict(existing.get("sections") or {})
-            base = DailyLogIn(
-                week=existing.get("week"),
-                done=existing.get("done") or [],
-                summary=existing.get("summary"),
-                note=existing.get("note"),
-                leetcode=existing.get("leetcode") or [],
-                tags=existing.get("tags") or [],
-                sections=sections,
-            )
-        except HTTPException:
-            base = DailyLogIn()  # day doesn't exist yet → start fresh
-            sections = {}
-        sections[heading] = content
-        base.sections = sections
-        return daily_log_put(date, base)
+        return _upsert_section(date, heading, content)
 
     @mcp.tool(annotations=_DEL)
     def delete_daily_log(date: str) -> dict:
