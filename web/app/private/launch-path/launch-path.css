@@ -15,6 +15,7 @@
   --f-glyph: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
   /* chart series (validated: adjacent CVD ΔE ≥ 8.4, normal ≥ 19.8) */
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #8a5cd0; /* RA track; added later, not part of the validated set above */
   --plan-soft: #dbe8f8; --neutral-soft: #e2e6ee;
   background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body);
   padding: 0 max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px));
@@ -24,7 +25,7 @@
   .lp {
     --bg: #0f1524; --surface: #172036; --ink: #e4e8f1; --muted: #9aa4ba; --line: #2a3552;
     --accent: #5cc2b1; --accent-soft: #18342f; --warm: #e0a060; --warm-soft: #3a2a18; --bad: #e78585; --bad-soft: #3a1e22;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --plan-soft: #1c3150; --neutral-soft: #232d45;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #9b78e0; --plan-soft: #1c3150; --neutral-soft: #232d45;
     color-scheme: dark;
   }
 }
@@ -82,7 +83,7 @@
 .lp .items li.done .tx { text-decoration: line-through; color: var(--muted) }
 .lp .tk { font: 500 10.5px var(--f-mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted) }
 .lp .tk::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 5px; background: var(--c, var(--muted)) }
-.lp .DSA { --c: var(--s1) } .lp .AI { --c: var(--s2) } .lp .SWE { --c: var(--s3) } .lp .STORY { --c: var(--s4) }
+.lp .DSA { --c: var(--s1) } .lp .AI { --c: var(--s2) } .lp .SWE { --c: var(--s3) } .lp .STORY { --c: var(--s4) } .lp .RA { --c: var(--s5) }
 /* ---- visuals ---- */
 .lp .viz { width: 100%; height: auto; display: block; overflow: visible }
 .lp .vizbox { overflow-x: auto; -webkit-overflow-scrolling: touch }
