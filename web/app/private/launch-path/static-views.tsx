@@ -9,10 +9,10 @@ export function WeekRotation() {
   const rows: [string, ReactNode, ReactNode][] = [
     ["Mon", <><b>AI engineering</b>: LLM concepts or the lia-reading RAG upgrade</>, "Same"],
     ["Tue", <><b>SWE fundamentals</b>: HTTP, SQL, Git, testing</>, <><b>System design lite</b>: URL shortener, rate limiter, cache, queue</>],
-    ["Wed", <><b>Project polish</b>: README, tests or a demo for one repo</>, "Same"],
+    ["Wed", <><b>Research (RA)</b>: writing sample first, then professor emails</>, "Same"],
     ["Thu", <><b>AI engineering</b>: agent loop, evals, tradeoff answers</>, <><b>AI system design</b>: RAG support bot + eval pipeline</>],
     ["Fri", <><b>Behavioral</b>: record one STAR story, one resume pass</>, "Same"],
-    ["Sat", <><b>Build day</b>: open-ended project work, the one allowed rabbit hole</>, "Same"],
+    ["Sat", <><b>Research build day</b>: paper reading or project work for the writing sample, the one allowed rabbit hole</>, "Same"],
     ["Sun", <><b>Weekly review</b>: check pace, redo every failed problem, set next week&apos;s patterns</>, "Same"],
   ];
   return (

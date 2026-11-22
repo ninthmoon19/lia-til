@@ -2,7 +2,7 @@
 // the chart-derived timeline, the operating rules and the daily block template.
 // Ported verbatim from the original single-file page.
 
-export type Track = "DSA" | "AI" | "SWE" | "STORY";
+export type Track = "DSA" | "AI" | "SWE" | "STORY" | "RA";
 export type Item = { id: string; track: Track; title: string; detail: string };
 export type PhaseBase = { id: string; name: string; tag: string; why: string; items: Item[] };
 
@@ -23,6 +23,7 @@ export const BASE: PhaseBase[] = [
       it("p1-fc", "DSA", "One flashcard per solved problem", "Pattern, trigger, edge case. Use leetcode-pattern-flashcards"),
       it("p1-star", "STORY", "Draft 4 STAR stories", "lia-reading, Bridge, care-plan API, feline pain detection"),
       it("p1-apply", "STORY", "Applications every day", "5 targeted applications a day in block 5, logged in lia-til"),
+      it("p1-sample", "RA", "Writing sample", "Essay built on your existing projects: the question, the idea, what you would test. Wednesday and Saturday block 4"),
     ],
   },
   {
@@ -38,6 +39,7 @@ export const BASE: PhaseBase[] = [
       it("p2-bt", "DSA", "Backtracking", "10 problems"),
       it("p2-mock", "DSA", "First timed mock", "45 min, out loud, recorded; review the recording"),
       it("p2-swe", "SWE", "SWE fundamentals pass", "HTTP/REST, SQL joins + indexes, Git rebase vs merge, pytest"),
+      it("p2-pitch", "RA", "Part-time RA pitch + shortlist", "10 professors whose work you would want to do; one short pitch offering about 10 hours a week"),
     ],
   },
   {
@@ -53,6 +55,7 @@ export const BASE: PhaseBase[] = [
       it("p3-rag", "AI", "RAG upgrade in lia-reading", "Chunking, embeddings, rerank; 30-question eval set with hit rate"),
       it("p3-agent", "AI", "Nano agent loop", "Follow learn-claude-code: tool calling + a stop condition in ~200 lines"),
       it("p3-trade", "AI", "Tradeoff answers", "RAG vs fine-tune vs long context: when to switch, in 90 seconds each"),
+      it("p3-emails", "RA", "Professor emails", "3 to 5 researched emails a week, each tied to one of their papers. No template blasts"),
     ],
   },
   {
@@ -69,6 +72,7 @@ export const BASE: PhaseBase[] = [
       it("p4-resume", "STORY", "Resume rewrite with numbers", "Every bullet: action + tech + result. Read it twice, once out loud"),
       it("p4-beh", "STORY", "Behavioral bank", "8 stories recorded and replayed"),
       it("p4-apply", "STORY", "Referrals + volume", "Referrals first, then 10 applications a day"),
+      it("p4-ra", "RA", "Follow-ups + calls", "One follow-up per unanswered email after a week; take every call offered"),
     ],
   },
 ];
@@ -81,6 +85,7 @@ export const TRACKS: { id: Track; name: string; color: string }[] = [
   { id: "AI", name: "AI engineering", color: "var(--s2)" },
   { id: "SWE", name: "SWE fundamentals", color: "var(--s3)" },
   { id: "STORY", name: "Story + applications", color: "var(--s4)" },
+  { id: "RA", name: "Research (RA)", color: "var(--s5)" },
 ];
 
 /** [when, title, system, text, tone] — tone "warm" marks a caution. */
@@ -137,10 +142,10 @@ export const BLOCKS: Block[] = [
 export const TRACKDAY: Record<number, [string, string]> = {
   1: ["AI engineering", "LLM concepts or the lia-reading RAG upgrade."],
   2: ["SWE fundamentals", "HTTP, SQL, Git, testing."],
-  3: ["Project polish", "README, tests or a demo for one repo."],
+  3: ["Research (RA)", "Writing sample first, then professor emails."],
   4: ["AI engineering", "Agent loop, evals, or a tradeoff answer."],
   5: ["Behavioral", "Record one STAR story; one resume pass."],
-  6: ["Build day", "Open-ended project work. The one allowed rabbit hole."],
+  6: ["Research build day", "Paper reading or project work for the writing sample. The one allowed rabbit hole."],
   0: ["Weekly review", "Check pace, redo every failed problem, set next week's patterns."],
 };
 export const P4TRACK: Record<number, [string, string]> = {
