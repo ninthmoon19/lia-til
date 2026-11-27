@@ -102,9 +102,9 @@ export async function getFullResumes(): Promise<ResumeRow[] | null> {
   return data.resumes ?? [];
 }
 
-export type LaunchPathState = { done: string[]; settings: unknown; updatedAt: string | null };
+export type LaunchPathState = { done: string[]; settings: unknown; plan: unknown; updatedAt: string | null };
 
-/** Fetch the Launch Path plan state (checklist ticks + plan settings) from the
+/** Fetch the Launch Path plan state (checklist ticks, plan settings and the saved plan) from the
  * backend's master-only endpoint. `settings` is untrusted JSON (null until first
  * saved); callers validate it with parseSettings. Returns `null` when the backend
  * can't be reached. */
@@ -116,5 +116,5 @@ export async function getLaunchPath(): Promise<LaunchPathState | null> {
     headers: { "x-admin-secret": secret },
   });
   if (!data) return null;
-  return { done: Array.isArray(data.done) ? data.done : [], settings: data.settings ?? null, updatedAt: data.updatedAt ?? null };
+  return { done: Array.isArray(data.done) ? data.done : [], settings: data.settings ?? null, plan: data.plan ?? null, updatedAt: data.updatedAt ?? null };
 }

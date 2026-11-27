@@ -237,3 +237,43 @@
 .lp details.more > summary h3::before { content: "+ "; color: var(--accent) }
 .lp details.more[open] > summary h3::before { content: "– " }
 .lp .logform { display: grid; gap: 14px; min-width: 0 }
+
+/* ---- Path: plan editor (plan-editor.tsx) ---- */
+.lp .plan-head { margin-top: 6px }
+.lp .btn { display: inline-flex; align-items: center; gap: 6px }
+.lp .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line) }
+.lp .btn.ghost:hover { background: var(--bg); filter: none }
+.lp .plan-edit { display: grid; gap: 18px }
+.lp .pe-phase { margin: 0; padding: 14px 18px 18px; display: grid; gap: 12px; min-width: 0 }
+.lp .pe-legend { float: left; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 }
+.lp .pe-legend + * { clear: both }
+.lp .pe-fields { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) }
+.lp .pe-wide { grid-column: 1 / -1 }
+.lp .fld textarea, .lp .pe-items input, .lp .pe-items select {
+  font: 14px var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0; resize: vertical;
+}
+.lp .pe-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted) }
+.lp .pe-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px }
+.lp .pe-items li { display: grid; grid-template-columns: 9.5em minmax(0, 1.2fr) minmax(0, 1.6fr) auto; gap: 8px; align-items: center }
+.lp .pe-items li.done input { color: var(--muted) }
+.lp .pe-items select.tk { font: 600 12px var(--f-mono) }
+.lp .pe-tools { display: inline-flex; gap: 4px }
+.lp .icon-btn {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
+  background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 6px;
+}
+.lp .icon-btn svg { width: 15px; height: 15px }
+.lp .icon-btn:hover:not(:disabled) { color: var(--ink); background: var(--bg) }
+.lp .icon-btn.danger:hover:not(:disabled) { color: var(--warm) }
+.lp .icon-btn:disabled { opacity: .35; cursor: default }
+.lp .pe-add { justify-self: start }
+.lp .pe-bar {
+  position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  padding: 12px 0; background: var(--bg); border-top: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .lp .pe-items li { grid-template-columns: 1fr auto; padding-bottom: 10px; border-bottom: 1px dashed var(--line) }
+  .lp .pe-items li > input { grid-column: 1 / -1 }
+  .lp .pe-items li > .pe-tools { grid-row: 1; grid-column: 2 }
+}

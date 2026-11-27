@@ -1,8 +1,9 @@
 import { Archivo_Black, Bricolage_Grotesque, IBM_Plex_Mono, IBM_Plex_Sans, Noto_Serif_SC, Nunito, Press_Start_2P, VT323 } from "next/font/google";
 import { requireAdmin } from "@/lib/auth";
-import { DEFAULT_SETTINGS, logsFromDailyLog, parseSettings } from "@/lib/launchPath";
+import { DEFAULT_SETTINGS, fitDays, logsFromDailyLog, parsePlan, parseSettings } from "@/lib/launchPath";
 import { getFullDailyLog, getLaunchPath } from "@/lib/private";
 import DataError from "@/app/components/DataError";
+import { DEFAULT_PLAN } from "./data";
 import LaunchPath from "./LaunchPath";
 import "./launch-path.css";
 import "./skins.css";
@@ -46,10 +47,14 @@ export default async function LaunchPathPage() {
     );
   }
 
+  // A stored plan replaces the default one; the day counts follow its length.
+  const phases = parsePlan(plan.plan) ?? DEFAULT_PLAN;
+  const settings = parseSettings(plan.settings) ?? DEFAULT_SETTINGS;
   return (
     <div className={fonts}>
       <LaunchPath
-        initialSettings={parseSettings(plan.settings) ?? DEFAULT_SETTINGS}
+        initialPlan={phases}
+        initialSettings={{ ...settings, days: fitDays(settings.days, phases.length) }}
         initialDone={plan.done}
         initialLogs={logsFromDailyLog(daily)}
       />

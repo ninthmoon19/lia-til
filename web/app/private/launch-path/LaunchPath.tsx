@@ -7,13 +7,14 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type InputHTMLAttributes } from "react";
 import Link from "next/link";
-import { CalendarClock, CircleCheckBig, Clock3, Lightbulb, Map as MapIcon, Orbit, RotateCcw, Sparkles, Sun, Wrench, type LucideIcon } from "lucide-react";
-import { bumpLog, cleanLog, isIsoDate, type DayLog, type LaunchSettings, type Tap } from "@/lib/launchPath";
-import { saveDayLog, saveSettings, setTick } from "./actions";
+import { CalendarClock, CircleCheckBig, Clock3, Lightbulb, Map as MapIcon, Orbit, Pencil, RotateCcw, Sparkles, Sun, Wrench, type LucideIcon } from "lucide-react";
+import { bumpLog, cleanLog, isIsoDate, type DayLog, type LaunchSettings, type PlanPhase, type Tap } from "@/lib/launchPath";
+import { saveDayLog, savePlan, saveSettings, setTick } from "./actions";
 import { CumChart, DayBar, Gantt, Heatmap, Roadmap, Spark, SprintRing, Tracks } from "./charts";
-import { ALL_ITEMS, KCOL } from "./data";
+import { DEFAULT_PLAN, KCOL } from "./data";
 import {
   addDays,
+  allItems,
   buildSchedule,
   computePhases,
   daysBetween,
@@ -30,6 +31,7 @@ import {
 } from "./plan";
 import { LangProvider, setStoredLang, useStoredLang, useT, type I18n, type Vars } from "./i18n";
 import { SKINS, skinPref, type Skin } from "./prefs";
+import { PlanEditor } from "./plan-editor";
 import { ChartReading, TimelineList, Toolkit, WeekRotation } from "./static-views";
 
 const VIEWS = [
@@ -43,7 +45,7 @@ const VIEWS = [
 type View = (typeof VIEWS)[number][0];
 
 /** `text` is an English key for t(); `date` fills {d} in the viewer's language. */
-type Status = { text: string; vars?: Vars; date?: string; err?: boolean };
+export type Status = { text: string; vars?: Vars; date?: string; err?: boolean };
 
 // Dates follow the browser's clock and time zone, and the view follows the URL
 // hash, so the tab renders on the client only (the server sends a shell).
@@ -56,6 +58,7 @@ const subscribeHash = (cb: () => void) => {
 const useHash = () => useSyncExternalStore(subscribeHash, () => window.location.hash.slice(1), () => "");
 
 export type LaunchPathProps = {
+  initialPlan: PlanPhase[];
   initialSettings: LaunchSettings;
   initialDone: string[];
   initialLogs: Record<string, DayLog>;
@@ -82,7 +85,8 @@ export default function LaunchPath(props: LaunchPathProps) {
   );
 }
 
-function LaunchPathClient({ initialSettings, initialDone, initialLogs }: LaunchPathProps) {
+function LaunchPathClient({ initialPlan, initialSettings, initialDone, initialLogs }: LaunchPathProps) {
+  const [plan, setPlan] = useState(initialPlan);
   const [settings, setSettings] = useState(initialSettings);
   const [done, setDone] = useState(() => new Set(initialDone));
   const [logs, setLogs] = useState(initialLogs);
@@ -120,11 +124,12 @@ function LaunchPathClient({ initialSettings, initialDone, initialLogs }: LaunchP
   const nowDate = new Date(now);
   const today = iso(nowDate);
   const minuteOfDay = nowDate.getHours() * 60 + nowDate.getMinutes();
-  const phases = computePhases(settings);
+  const phases = computePhases(settings, plan);
   const end = planEnd(phases);
   const cur = phaseFor(phases, today);
   const totalDays = daysBetween(settings.start, end) + 1;
-  const nDone = ALL_ITEMS.filter((i) => done.has(i.id)).length;
+  const items = allItems(phases);
+  const nDone = items.filter((i) => done.has(i.id)).length;
 
   // ---- writes ---------------------------------------------------------------
   const toggle = async (id: string, on: boolean) => {
@@ -158,6 +163,27 @@ function LaunchPathClient({ initialSettings, initialDone, initialLogs }: LaunchP
       const res = await saveSettings(latest.current);
       setSetStatus(res.ok ? { text: "Saved" } : { text: "Not saved: {e}", vars: { e: res.error }, err: true });
     }, 700);
+  };
+
+  // The plan saves as a whole, together with one day count per phase. `null`
+  // goes back to the default plan. On failure the page keeps the old plan and
+  // the editor stays open with the draft.
+  const changePlan = async (next: PlanPhase[] | null, days: number[]): Promise<Status> => {
+    const before = { plan, settings: latest.current };
+    const nextSettings = { ...latest.current, days };
+    if (timer.current) clearTimeout(timer.current); // this save carries the newest settings too
+    latest.current = nextSettings;
+    setPlan(next ?? DEFAULT_PLAN);
+    setSettings(nextSettings);
+    const res = await savePlan(next, nextSettings);
+    if (res.ok) {
+      setSetStatus({ text: "Saved" });
+      return { text: "Saved" };
+    }
+    latest.current = before.settings;
+    setPlan(before.plan);
+    setSettings(before.settings);
+    return { text: "Not saved: {e}", vars: { e: res.error }, err: true };
   };
 
   const saveLog = async (date: string, log: DayLog): Promise<Status> => {
@@ -225,9 +251,9 @@ function LaunchPathClient({ initialSettings, initialDone, initialLogs }: LaunchP
         </p>
         <div className="overall">
           <div className="bar" aria-hidden="true">
-            <i style={{ width: `${(100 * nDone) / ALL_ITEMS.length}%` }} />
+            <i style={{ width: `${items.length ? (100 * nDone) / items.length : 0}%` }} />
           </div>
-          <span className="mono">{t("{n} / {total} items", { n: nDone, total: ALL_ITEMS.length })}</span>
+          <span className="mono">{t("{n} / {total} items", { n: nDone, total: items.length })}</span>
           <StatusText s={sync} />
         </div>
       </header>
@@ -246,8 +272,8 @@ function LaunchPathClient({ initialSettings, initialDone, initialLogs }: LaunchP
           minuteOfDay={minuteOfDay} onSaveLog={saveLog} onTap={tap} sync={sync} />
       )}
       {view === "path" && (
-        <PathView settings={settings} phases={phases} cur={cur} done={done} status={setStatus}
-          onChange={changeSettings} onToggle={toggle} onStatus={setSetStatus} />
+        <PathView settings={settings} plan={plan} phases={phases} cur={cur} done={done} status={setStatus}
+          onChange={changeSettings} onToggle={toggle} onStatus={setSetStatus} onSavePlan={changePlan} />
       )}
       {view === "day" && (
         <section className="view">
@@ -319,7 +345,7 @@ function TodayView({
   onTap: (kind: Tap, delta: 1 | -1) => void; sync: Status;
 }) {
   const { t, fmt, fmtS } = useT();
-  const next = ALL_ITEMS.filter((i) => !done.has(i.id))
+  const next = allItems(phases).filter((i) => !done.has(i.id))
     .sort((a, b) => (a.phaseId === cur.id ? 0 : 1) - (b.phaseId === cur.id ? 0 : 1))
     .slice(0, 3);
   const sch = buildSchedule(settings, phases, today);
@@ -449,7 +475,7 @@ function TodayView({
       </div>
       <div className="vizcard">
         <h3>{t("Progress by track")}</h3>
-        <Tracks done={done} />
+        <Tracks done={done} phases={phases} />
       </div>
     </section>
   );
@@ -706,12 +732,13 @@ const intParse = (lo: number, hi: number) => (raw: string) => {
   return raw.trim() !== "" && Number.isInteger(n) && n >= lo && n <= hi ? String(n) : null;
 };
 
-function PathView({ settings, phases, cur, done, status, onChange, onToggle, onStatus }: {
-  settings: LaunchSettings; phases: Phase[]; cur: Phase; done: Set<string>; status: Status;
+function PathView({ settings, plan, phases, cur, done, status, onChange, onToggle, onStatus, onSavePlan }: {
+  settings: LaunchSettings; plan: PlanPhase[]; phases: Phase[]; cur: Phase; done: Set<string>; status: Status;
   onChange: (patch: Partial<LaunchSettings>) => void; onToggle: (id: string, on: boolean) => void;
-  onStatus: (s: Status) => void;
+  onStatus: (s: Status) => void; onSavePlan: (plan: PlanPhase[] | null, days: number[]) => Promise<Status>;
 }) {
   const { t, fmt } = useT();
+  const [editing, setEditing] = useState(false);
   const end = planEnd(phases);
   const total = daysBetween(settings.start, end) + 1;
   const [finish, setFinish] = useState<string | null>(null);
@@ -775,6 +802,18 @@ function PathView({ settings, phases, cur, done, status, onChange, onToggle, onS
         </div>
       </div>
 
+      <div className="ph-row plan-head">
+        <h3>{t("Phases and checklist")}</h3>
+        {!editing && (
+          <button type="button" className="btn ghost" onClick={() => setEditing(true)}>
+            <Pencil aria-hidden="true" className="ico" />{t("Edit plan")}
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <PlanEditor plan={plan} days={settings.days} done={done}
+          onSave={onSavePlan} onClose={() => setEditing(false)} />
+      ) : (
       <div style={{ display: "grid", gap: 18 }}>
         {phases.map((p, idx) => {
           const n = p.items.filter((i) => done.has(i.id)).length;
@@ -818,6 +857,7 @@ function PathView({ settings, phases, cur, done, status, onChange, onToggle, onS
           );
         })}
       </div>
+      )}
     </section>
   );
 }

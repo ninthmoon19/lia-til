@@ -2,8 +2,8 @@
 // Every date is a local-calendar "YYYY-MM-DD" string; nothing here reads the clock
 // except todayISO(), so the rest is deterministic.
 
-import type { DayLog, LaunchSettings } from "@/lib/launchPath";
-import { BASE, BLOCKS, P4TRACK, TRACKDAY, type BlockKind, type PhaseBase } from "./data";
+import type { DayLog, LaunchSettings, PlanPhase } from "@/lib/launchPath";
+import { BLOCKS, P4TRACK, TRACKDAY, type BlockKind } from "./data";
 
 export const DAY = 86_400_000;
 
@@ -29,18 +29,21 @@ export const toMin = (s: string) => {
 export const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 export const dur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? " " + (m % 60) + " m" : ""}` : `${m} m`);
 
-export type Phase = PhaseBase & { start: string; end: string; days: number };
+export type Phase = PlanPhase & { start: string; end: string; days: number };
 
-export function computePhases(s: LaunchSettings): Phase[] {
+export function computePhases(s: LaunchSettings, plan: PlanPhase[]): Phase[] {
   let cur = s.start;
-  return BASE.map((p, i) => {
-    const n = Math.max(1, Math.min(90, Math.trunc(s.days[i]) || 1));
+  return plan.map((p, i) => {
+    const n = Math.max(1, Math.min(90, Math.trunc(s.days[i] ?? 14) || 1));
     const start = cur;
     const end = addDays(start, n - 1);
     cur = addDays(end, 1);
     return { ...p, start, end, days: n };
   });
 }
+
+/** Every checklist item, tagged with its phase. */
+export const allItems = (phases: PlanPhase[]) => phases.flatMap((p) => p.items.map((i) => ({ ...i, phaseId: p.id })));
 
 export const planEnd = (phases: Phase[]) => phases[phases.length - 1].end;
 
@@ -62,7 +65,7 @@ export function fitPhases(s: LaunchSettings, finish: string): number[] {
 export type SchedBlock = { k: BlockKind; start: number; mins: number; title: string; desc: string };
 
 export function buildSchedule(s: LaunchSettings, phases: Phase[], date: string): SchedBlock[] {
-  const p4 = phaseFor(phases, date).id === "p4";
+  const p4 = phaseFor(phases, date).interview;
   const dow = pD(date).getDay();
   const f = (s.hours * 60) / 360;
   let t = toMin(s.dayStart);

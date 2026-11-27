@@ -1,6 +1,6 @@
 """Launch Path storage: the per-day results go into daily_logs as one section
 (written without disturbing the rest of the day), and the plan's ticks and
-settings are one small document behind the master secret."""
+settings, plus an edited plan, are one small document behind the master secret."""
 
 from fastapi.testclient import TestClient
 
@@ -61,7 +61,7 @@ def test_section_upsert_is_gated_and_validated():
 def test_launch_path_starts_empty():
     r = client.get("/api/launch-path", headers=ADMIN)
     assert r.status_code == 200
-    assert r.json() == {"done": [], "settings": None, "updatedAt": None}
+    assert r.json() == {"done": [], "settings": None, "plan": None, "updatedAt": None}
 
 
 def test_settings_round_trip():
@@ -91,7 +91,8 @@ def test_launch_path_is_master_only_and_validated():
     assert client.get("/api/launch-path", headers=SCOPED).status_code == 401
     assert client.patch("/api/launch-path", json={"tick": {"id": "p1-py", "done": True}}, headers=SCOPED).status_code == 401
     bad = [
-        {**SETTINGS, "days": [14, 14, 14]},
+        {**SETTINGS, "days": []},
+        {**SETTINGS, "days": [14] * 9},
         {**SETTINGS, "days": [0, 14, 14, 17]},
         {**SETTINGS, "hours": 20},
         {**SETTINGS, "start": "Nov 18"},
@@ -99,3 +100,40 @@ def test_launch_path_is_master_only_and_validated():
     for s in bad:
         assert client.patch("/api/launch-path", json={"settings": s}, headers=ADMIN).status_code == 422, s
     assert client.patch("/api/launch-path", json={"tick": {"id": "DROP TABLE", "done": True}}, headers=ADMIN).status_code == 422
+
+
+PLAN = {"phases": [
+    {"id": "p1", "name": "Arrays", "tag": "Warm-up", "why": "", "interview": False,
+     "items": [{"id": "it-a", "track": "DSA", "title": "Two pointers", "detail": "10 problems"}]},
+    {"id": "ph-x", "name": "Mocks", "interview": True, "items": []},
+]}
+
+
+def test_plan_round_trip_and_reset():
+    client.patch("/api/launch-path", json={"tick": {"id": "it-a", "done": True}}, headers=ADMIN)
+    r = client.patch("/api/launch-path", json={"plan": PLAN, "settings": {**SETTINGS, "days": [10, 20]}}, headers=ADMIN)
+    assert r.status_code == 200
+    got = client.get("/api/launch-path", headers=ADMIN).json()
+    assert [p["id"] for p in got["plan"]["phases"]] == ["p1", "ph-x"]
+    assert got["plan"]["phases"][1]["tag"] == ""  # defaults filled in
+    assert got["settings"]["days"] == [10, 20]
+    assert "it-a" in got["done"]
+    # A tick or a settings write leaves the plan alone; an explicit null resets it.
+    client.patch("/api/launch-path", json={"tick": {"id": "it-a", "done": False}}, headers=ADMIN)
+    assert client.get("/api/launch-path", headers=ADMIN).json()["plan"] is not None
+    client.patch("/api/launch-path", json={"plan": None}, headers=ADMIN)
+    assert client.get("/api/launch-path", headers=ADMIN).json()["plan"] is None
+
+
+def test_plan_is_validated():
+    one = PLAN["phases"][0]
+    bad = [
+        {"phases": []},
+        {"phases": [one, one]},  # duplicate ids
+        {"phases": [{**one, "name": ""}]},
+        {"phases": [{**one, "items": [{**one["items"][0], "track": "MATH"}]}]},
+        {"phases": [{**one, "id": "Bad Id"}]},
+    ]
+    for p in bad:
+        assert client.patch("/api/launch-path", json={"plan": p}, headers=ADMIN).status_code == 422, p
+    assert client.patch("/api/launch-path", json={"plan": PLAN}, headers=SCOPED).status_code == 401
