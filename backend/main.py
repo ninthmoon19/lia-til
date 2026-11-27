@@ -10,10 +10,10 @@ import os
 import re
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import date as date_type, datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select, text
 
 from db import Base, SessionLocal, engine
@@ -713,7 +713,8 @@ def daily_log_section_put(date: str, body: SectionIn):
 
 # ===========================================================================
 # Launch Path plan state (the private /private/launch-path tab). One small JSON
-# document in site_meta: the checklist ticks and the plan settings. The per-day
+# document in site_meta: the checklist ticks, the plan settings and (once edited
+# on the Path tab) the phases and their checklist items. The per-day
 # results live in daily_logs as a "Launch Path" section, not here. MASTER-only:
 # the scoped daily-log key has no business moving the plan around.
 # ===========================================================================
@@ -722,7 +723,7 @@ LAUNCH_PATH_KEY = "launch_path"
 
 class LaunchSettings(BaseModel):
     start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    days: list[Annotated[int, Field(ge=1, le=90)]] = Field(min_length=4, max_length=4)  # one length per phase
+    days: list[Annotated[int, Field(ge=1, le=90)]] = Field(min_length=1, max_length=8)  # one length per phase
     hours: float = Field(ge=1, le=12)
     dayStart: str = Field(pattern=r"^\d{2}:\d{2}$")
     dailyNew: int = Field(ge=1, le=15)
@@ -734,12 +735,44 @@ class LaunchTick(BaseModel):
     done: bool
 
 
+_PLAN_ID = r"^[a-z0-9-]+$"
+
+
+class LaunchItem(BaseModel):
+    id: str = Field(min_length=1, max_length=64, pattern=_PLAN_ID)
+    track: Literal["DSA", "AI", "SWE", "STORY", "RA"]
+    title: str = Field(min_length=1, max_length=120)
+    detail: str = Field(default="", max_length=300)
+
+
+class LaunchPhase(BaseModel):
+    id: str = Field(min_length=1, max_length=64, pattern=_PLAN_ID)
+    name: str = Field(min_length=1, max_length=80)
+    tag: str = Field(default="", max_length=40)
+    why: str = Field(default="", max_length=600)
+    interview: bool = False
+    items: list[LaunchItem] = Field(default_factory=list, max_length=40)
+
+
+class LaunchPlan(BaseModel):
+    phases: list[LaunchPhase] = Field(min_length=1, max_length=8)
+
+    @model_validator(mode="after")
+    def _unique_ids(self):
+        ids = [p.id for p in self.phases] + [i.id for p in self.phases for i in p.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("phase and item ids must be unique")
+        return self
+
+
 class LaunchPathPatch(BaseModel):
-    """Either or both. `settings` replaces the stored settings; `tick` sets one
+    """Any of them. `settings` replaces the stored settings; `tick` sets one
     checklist item on or off (idempotent), so two open tabs can't undo each
-    other's ticks the way a whole-list write would."""
+    other's ticks the way a whole-list write would; `plan` replaces the phases
+    and checklist, and an explicit `"plan": null` drops it (back to the default)."""
     settings: Optional[LaunchSettings] = None
     tick: Optional[LaunchTick] = None
+    plan: Optional[LaunchPlan] = None
 
 
 def _launch_doc(row: Optional[SiteMeta]) -> dict:
@@ -749,12 +782,13 @@ def _launch_doc(row: Optional[SiteMeta]) -> dict:
         doc = {}
     done = doc.get("done") if isinstance(doc.get("done"), list) else []
     settings = doc.get("settings") if isinstance(doc.get("settings"), dict) else None
-    return {"done": [d for d in done if isinstance(d, str)], "settings": settings}
+    plan = doc.get("plan") if isinstance(doc.get("plan"), dict) else None
+    return {"done": [d for d in done if isinstance(d, str)], "settings": settings, "plan": plan}
 
 
 @app.get("/api/launch-path", dependencies=[Depends(require_admin)])
 def launch_path_get():
-    """PRIVATE — {done, settings, updatedAt}; settings is null until first saved."""
+    """PRIVATE — {done, settings, plan, updatedAt}; settings and plan are null until first saved."""
     if SessionLocal is None:
         raise HTTPException(status_code=503, detail="db unavailable")
     with SessionLocal() as session:
@@ -764,7 +798,7 @@ def launch_path_get():
 
 @app.patch("/api/launch-path", dependencies=[Depends(require_admin)])
 def launch_path_patch(body: LaunchPathPatch):
-    """PRIVATE — apply a settings change and/or one tick; returns the new state."""
+    """PRIVATE — apply a settings change, one tick and/or a new plan; returns the new state."""
     if SessionLocal is None:
         raise HTTPException(status_code=503, detail="db unavailable")
     with SessionLocal() as session:
@@ -775,6 +809,8 @@ def launch_path_patch(body: LaunchPathPatch):
         doc = _launch_doc(row)
         if body.settings is not None:
             doc["settings"] = body.settings.model_dump()
+        if "plan" in body.model_fields_set:
+            doc["plan"] = body.plan.model_dump() if body.plan is not None else None
         if body.tick is not None:
             done = [d for d in doc["done"] if d != body.tick.id]
             if body.tick.done:

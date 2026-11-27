@@ -2,9 +2,10 @@
 // the chart-derived timeline, the operating rules and the daily block template.
 // Ported verbatim from the original single-file page.
 
-export type Track = "DSA" | "AI" | "SWE" | "STORY" | "RA";
-export type Item = { id: string; track: Track; title: string; detail: string };
-export type PhaseBase = { id: string; name: string; tag: string; why: string; items: Item[] };
+import type { PlanItem as Item, PlanPhase, Track } from "@/lib/launchPath";
+
+export type { Track };
+type PhaseBase = Omit<PlanPhase, "interview">;
 
 const it = (id: string, track: Track, title: string, detail: string): Item => ({ id, track, title, detail });
 
@@ -77,8 +78,9 @@ export const BASE: PhaseBase[] = [
   },
 ];
 
-export const ALL_ITEMS = BASE.flatMap((p) => p.items.map((i) => ({ ...i, phaseId: p.id })));
-export const ITEM_IDS = new Set(ALL_ITEMS.map((i) => i.id));
+/** The plan the tab starts with until one is saved from the Path tab. "Interview
+ * mode" turns the daily blocks into mocks (the p4 overrides in BLOCKS / P4TRACK). */
+export const DEFAULT_PLAN: PlanPhase[] = BASE.map((p) => ({ ...p, interview: p.id === "p4" }));
 
 export const TRACKS: { id: Track; name: string; color: string }[] = [
   { id: "DSA", name: "DSA", color: "var(--s1)" },

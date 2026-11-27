@@ -4,9 +4,9 @@
 // Text goes through useT(): English is the key, zh/charts.ts holds the Chinese.
 
 import { heatLevel, projectTotal, type DayLog, type LaunchSettings } from "@/lib/launchPath";
-import { ALL_ITEMS, KCOL, TL, TRACKS } from "./data";
+import { KCOL, TL, TRACKS } from "./data";
 import { useT } from "./i18n";
-import { DAY, addDays, daysBetween, hm, iso, pD, planEnd, type Phase, type SchedBlock } from "./plan";
+import { DAY, addDays, allItems, daysBetween, hm, iso, pD, planEnd, type Phase, type SchedBlock } from "./plan";
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VS15 = "︎"; // text-style variation selector for astro glyphs
@@ -44,7 +44,7 @@ export function Roadmap({ settings, phases, done, today }: { settings: LaunchSet
       <DayAxis x={x} y0={120} t0={t0} t1={t1} />
       {phases.map((p) => {
         const a = x(pD(p.start)) + 1, b = x(nextDay(p.end)) - 1, w = b - a;
-        const n = p.items.filter((i) => done.has(i.id)).length, f = n / p.items.length;
+        const n = p.items.filter((i) => done.has(i.id)).length, f = p.items.length ? n / p.items.length : 0;
         const name = t(p.name);
         const tip = t("{name} · {start} – {end} · {n}/{total} done", { name, start: fmt(p.start), end: fmt(p.end), n, total: p.items.length });
         const first = name.split(" ")[0];
@@ -230,10 +230,12 @@ function HBars({ rows, max }: { rows: HBarRow[]; max: number }) {
   );
 }
 
-export function Tracks({ done }: { done: Set<string> }) {
+export function Tracks({ done, phases }: { done: Set<string>; phases: Phase[] }) {
   const { t } = useT();
-  const rows = TRACKS.map((tr) => {
-    const its = ALL_ITEMS.filter((i) => i.track === tr.id);
+  const items = allItems(phases);
+  // A track with no items in the plan gets no bar.
+  const rows = TRACKS.filter((tr) => items.some((i) => i.track === tr.id)).map((tr) => {
+    const its = items.filter((i) => i.track === tr.id);
     const n = its.filter((i) => done.has(i.id)).length;
     return {
       en: tr.name,

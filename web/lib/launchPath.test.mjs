@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_SETTINGS,
   cleanLog,
+  fitDays,
+  parsePlan,
   formatLogSection,
   logsFromDailyLog,
   parseLogSection,
@@ -59,7 +61,10 @@ test("logsFromDailyLog keeps only days that carry the section", () => {
 
 test("parseSettings accepts the defaults and rejects out-of-range values", () => {
   assert.deepEqual(parseSettings(DEFAULT_SETTINGS), DEFAULT_SETTINGS);
-  assert.equal(parseSettings({ ...DEFAULT_SETTINGS, days: [14, 14, 14] }), null);
+  // The day count follows the plan's length (1 to 8 phases).
+  assert.deepEqual(parseSettings({ ...DEFAULT_SETTINGS, days: [14, 14, 14] })?.days, [14, 14, 14]);
+  assert.equal(parseSettings({ ...DEFAULT_SETTINGS, days: [] }), null);
+  assert.equal(parseSettings({ ...DEFAULT_SETTINGS, days: Array(9).fill(7) }), null);
   assert.equal(parseSettings({ ...DEFAULT_SETTINGS, days: [0, 14, 14, 17] }), null);
   assert.equal(parseSettings({ ...DEFAULT_SETTINGS, hours: 13 }), null);
   assert.equal(parseSettings({ ...DEFAULT_SETTINGS, dayStart: "9am" }), null);
@@ -91,4 +96,32 @@ test("projection and heatmap levels", async () => {
   assert.equal(projectTotal(0, 2, 59), 0);
   assert.equal(projectTotal(5, 0, 59), 5);
   assert.deepEqual([0, 1, 2, 4, 5, 6].map((n) => heatLevel(n, 4)), [0, 1, 2, 3, 3, 4]);
+});
+
+const phase = (id, items = []) => ({ id, name: "Phase " + id, tag: "", why: "", interview: false, items });
+const item = (id) => ({ id, track: "DSA", title: "Task " + id, detail: "" });
+
+test("parsePlan accepts a clean plan and tidies whitespace", () => {
+  const got = parsePlan({ phases: [{ ...phase("p1", [{ ...item("a"), title: "  Two   pointers " }]), interview: true }] });
+  assert.equal(got[0].items[0].title, "Two pointers");
+  assert.equal(got[0].interview, true);
+});
+
+test("parsePlan rejects anything malformed", () => {
+  for (const bad of [
+    null,
+    { phases: [] },
+    { phases: Array.from({ length: 9 }, (_, i) => phase("p" + i)) },
+    { phases: [phase("p1"), phase("p1")] }, // duplicate phase id
+    { phases: [phase("p1", [item("x")]), phase("p2", [item("x")])] }, // duplicate item id
+    { phases: [{ ...phase("p1"), name: "  " }] },
+    { phases: [phase("p1", [{ ...item("a"), track: "MATH" }])] },
+    { phases: [phase("Not An Id")] },
+    { phases: [phase("p1", [{ ...item("a"), title: "x".repeat(121) }])] },
+  ]) assert.equal(parsePlan(bad), null, JSON.stringify(bad)?.slice(0, 80));
+});
+
+test("fitDays keeps existing counts and fills new phases", () => {
+  assert.deepEqual(fitDays([10, 20, 30, 40], 2), [10, 20]);
+  assert.deepEqual(fitDays([10], 3), [10, 14, 14]);
 });

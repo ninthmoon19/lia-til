@@ -18,7 +18,7 @@ const SAME = new Set(["DSA"]);
 
 test("every t(\"…\") and row(\"…\") literal in the Launch Path views has a Chinese entry", () => {
   const missing = [];
-  for (const f of ["LaunchPath.tsx", "static-views.tsx", "charts.tsx"]) {
+  for (const f of ["LaunchPath.tsx", "plan-editor.tsx", "static-views.tsx", "charts.tsx"]) {
     const src = fs.readFileSync(new URL(f, dir), "utf8");
     for (const m of src.matchAll(/\bt\("((?:[^"\\]|\\.)*)"/g)) {
       const key = JSON.parse(`"${m[1]}"`);
@@ -34,7 +34,7 @@ test("every t(\"…\") and row(\"…\") literal in the Launch Path views has a C
 
 test("every user-visible string in data.ts has a Chinese entry", () => {
   const strings = [
-    ...data.BASE.flatMap((p) => [p.name, p.tag, p.why, ...p.items.flatMap((i) => [i.title, i.detail])]),
+    ...data.DEFAULT_PLAN.flatMap((p) => [p.name, p.tag, p.why, ...p.items.flatMap((i) => [i.title, i.detail])]),
     ...data.TRACKS.map((t) => t.name),
     ...data.TL.flatMap((r) => [r[1], r[2], r[3]]),
     ...data.RULES.flat(),

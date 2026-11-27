@@ -5,7 +5,7 @@
 /** Plan settings — every date, schedule and chart on the tab derives from these. */
 export type LaunchSettings = {
   start: string; // YYYY-MM-DD
-  days: number[]; // one length per phase (4)
+  days: number[]; // one length per phase, in plan order (1-8 phases)
   hours: number; // study hours per day, 1-12
   dayStart: string; // HH:MM
   dailyNew: number; // new problems per day, 1-15
@@ -54,8 +54,67 @@ export function parseSettings(raw: unknown): LaunchSettings | null {
   const goal = intIn(s.goal, 10, 1000);
   if (!isIsoDate(s.start) || typeof s.dayStart !== "string" || !HM.test(s.dayStart)) return null;
   if (!(hours >= 1 && hours <= 12) || dailyNew === null || goal === null) return null;
-  if (days.length !== DEFAULT_SETTINGS.days.length || days.some((d) => d === null)) return null;
+  if (days.length < 1 || days.length > PLAN_LIMITS.phases || days.some((d) => d === null)) return null;
   return { start: s.start, days: days as number[], hours, dayStart: s.dayStart, dailyNew, goal };
+}
+
+// ---- the editable plan ---------------------------------------------------------
+// The phases and their checklist. The default lives in the tab's data.ts; once
+// saved from the Path tab, the stored copy replaces it. Settings keep one day
+// count per phase, so `fitDays` lines the two up after any change.
+
+export const TRACK_IDS = ["DSA", "AI", "SWE", "STORY", "RA"] as const;
+export type Track = (typeof TRACK_IDS)[number];
+export type PlanItem = { id: string; track: Track; title: string; detail: string };
+/** `interview` switches the daily schedule to mock-interview blocks during the phase. */
+export type PlanPhase = { id: string; name: string; tag: string; why: string; interview: boolean; items: PlanItem[] };
+
+export const PLAN_LIMITS = { phases: 8, items: 40, name: 80, tag: 40, why: 600, title: 120, detail: 300 } as const;
+const PLAN_ID = /^[a-z0-9-]{1,64}$/;
+
+const text = (v: unknown, max: number): string | null => {
+  if (typeof v !== "string") return null;
+  const s = v.replace(/\s+/g, " ").trim();
+  return s.length <= max ? s : null;
+};
+
+/** Accept a plan only if every phase and item is well formed; otherwise null.
+ * Phase and item ids must be unique, since ticks are stored by item id. */
+export function parsePlan(raw: unknown): PlanPhase[] | null {
+  const list = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as { phases?: unknown }).phases : raw;
+  if (!Array.isArray(list) || list.length < 1 || list.length > PLAN_LIMITS.phases) return null;
+  const seen = new Set<string>();
+  const fresh = (id: unknown): id is string => typeof id === "string" && PLAN_ID.test(id) && !seen.has(id) && !!seen.add(id);
+  const out: PlanPhase[] = [];
+  for (const p of list) {
+    if (!p || typeof p !== "object") return null;
+    const q = p as Record<string, unknown>;
+    const name = text(q.name, PLAN_LIMITS.name), tag = text(q.tag ?? "", PLAN_LIMITS.tag), why = text(q.why ?? "", PLAN_LIMITS.why);
+    if (!fresh(q.id) || !name || tag === null || why === null || !Array.isArray(q.items) || q.items.length > PLAN_LIMITS.items) return null;
+    const items: PlanItem[] = [];
+    for (const i of q.items) {
+      if (!i || typeof i !== "object") return null;
+      const r = i as Record<string, unknown>;
+      const title = text(r.title, PLAN_LIMITS.title), detail = text(r.detail ?? "", PLAN_LIMITS.detail);
+      if (!fresh(r.id) || !title || detail === null || !TRACK_IDS.includes(r.track as Track)) return null;
+      items.push({ id: r.id, track: r.track as Track, title, detail });
+    }
+    out.push({ id: q.id, name, tag, why, interview: q.interview === true, items });
+  }
+  return out;
+}
+
+/** One day count per phase: keep the ones there are, give new phases `fill` days. */
+export const fitDays = (days: number[], n: number, fill = 14): number[] =>
+  Array.from({ length: n }, (_, i) => days[i] ?? fill);
+
+/** A new id for a phase or item that no existing one uses. */
+export function newPlanId(prefix: "ph" | "it", taken: Iterable<string>): string {
+  const used = new Set(taken);
+  for (;;) {
+    const id = `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+    if (!used.has(id)) return id;
+  }
 }
 
 // ---- the daily-log section -----------------------------------------------------
