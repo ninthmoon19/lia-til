@@ -123,3 +123,19 @@ DATABASE_URL='postgresql://…neon.tech/neondb?sslmode=require' uvicorn main:app
 
 See [`web/.env.example`](web/.env.example) and [`backend/.env.example`](backend/.env.example) for the
 environment variables (`API_URL`, `BACKEND_SECRET`, the GitHub-OAuth vars, `DATABASE_URL`, …).
+
+### Private-area access
+
+Exactly one GitHub account may enter `/private`. The OAuth callback
+(`web/app/api/auth/callback/route.ts`) and every page check (`isAllowed` in `web/lib/auth.ts`)
+share one rule, `web/lib/allowlist.ts`:
+
+- **`ALLOWED_GITHUB_ID`** (preferred): the owner's numeric GitHub user ID (`gh api user -q .id`).
+  The login is ignored, so renaming the GitHub account doesn't lock the owner out, and whoever
+  later takes the old username can't get in.
+- **`ALLOWED_GITHUB_LOGIN`** (fallback): the username, compared case-insensitively, used only when
+  `ALLOWED_GITHUB_ID` is empty.
+
+The ID is stored in the signed `lt_session` cookie. A cookie minted before that (no ID) stops
+counting once `ALLOWED_GITHUB_ID` is set, and the owner is simply sent through GitHub login again.
+Changing either variable on Vercel needs a redeploy to take effect.
