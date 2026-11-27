@@ -6,7 +6,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
-import { PLAN_LIMITS, TRACK_IDS, newPlanId, type PlanItem, type PlanPhase, type Track } from "@/lib/launchPath";
+import { DEFAULT_SETTINGS, PLAN_LIMITS, TRACK_IDS, newPlanId, type PlanItem, type PlanPhase, type Track } from "@/lib/launchPath";
 import { DEFAULT_PLAN, TRACKS } from "./data";
 import { useT } from "./i18n";
 import type { Status } from "./LaunchPath";
@@ -73,7 +73,9 @@ export function PlanEditor({ plan, days, done, onSave, onClose }: {
     if (!window.confirm(t("Go back to the default plan? Your own phases and items will be replaced."))) return;
     setBusy(true);
     setStatus({ text: "Saving…" });
-    const res = await onSave(null, DEFAULT_PLAN.map((_, i) => days[i] ?? 14));
+    // The default phases come back with their default lengths, not whatever
+    // the custom plan had at the same position.
+    const res = await onSave(null, DEFAULT_SETTINGS.days);
     setBusy(false);
     if (res.err) setStatus(res);
     else onClose();
