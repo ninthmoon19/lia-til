@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { baseUrl, allowedLogin } from "@/lib/auth";
+import { baseUrl, allowlist } from "@/lib/auth";
+import { isAllowedIdentity } from "@/lib/allowlist";
 import { createSession } from "@/lib/session";
 import { fetchJsonWithRetry } from "@/lib/net";
 
@@ -9,7 +10,8 @@ export const maxDuration = 20;
 
 // GitHub redirects back here with ?code & ?state. We verify state, exchange the
 // code for an access token, fetch the user, and — only if it's the allowed
-// login — mint a session and send them to /private.
+// account (matched by numeric GitHub ID, see lib/allowlist.ts) — mint a
+// session and send them to /private.
 export async function GET(request: Request) {
   const base = await baseUrl();
   const url = new URL(request.url);
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
   }
 
   // 2. Fetch the GitHub user behind that token (same retry treatment).
-  const user = await fetchJsonWithRetry<{ login?: string; name?: string; avatar_url?: string }>(
+  const user = await fetchJsonWithRetry<{ id?: number; login?: string; name?: string; avatar_url?: string }>(
     "https://api.github.com/user",
     { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/vnd.github+json" } },
     { deadlineMs: 9_000, gapMs: 800 },
@@ -65,11 +67,10 @@ export async function GET(request: Request) {
 
   // 3. Allowlist check — reached only when GitHub answered cleanly, so a miss
   //    here is a genuinely different account, not a transient error.
-  const allowed = allowedLogin();
-  if (!allowed || user.login.toLowerCase() !== allowed.toLowerCase()) {
+  if (!isAllowedIdentity(user, allowlist())) {
     return NextResponse.redirect(`${base}/private/denied?reason=not_allowed`);
   }
 
-  await createSession({ login: user.login, name: user.name, avatar: user.avatar_url });
+  await createSession({ id: user.id, login: user.login, name: user.name, avatar: user.avatar_url });
   return NextResponse.redirect(`${base}/private`);
 }

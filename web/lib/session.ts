@@ -8,7 +8,8 @@ import { SignJWT, jwtVerify } from "jose";
 const COOKIE = "lt_session";
 const MAX_AGE_S = 7 * 24 * 60 * 60; // 7 days
 
-export type Session = { login: string; name?: string; avatar?: string };
+// `id` is the numeric GitHub user ID. Cookies minted before it was added lack it.
+export type Session = { id?: number; login: string; name?: string; avatar?: string };
 
 function key(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
@@ -40,6 +41,7 @@ export async function getSession(): Promise<Session | null> {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
     if (typeof payload.login !== "string") return null;
     return {
+      id: typeof payload.id === "number" ? payload.id : undefined,
       login: payload.login,
       name: typeof payload.name === "string" ? payload.name : undefined,
       avatar: typeof payload.avatar === "string" ? payload.avatar : undefined,

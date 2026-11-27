@@ -4,15 +4,19 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getSession, type Session } from "./session";
+import { allowlistFromEnv, isAllowedIdentity, type AllowlistConfig } from "./allowlist";
 
-/** Only this GitHub login is allowed in. Everyone else is a public visitor. */
-export function allowedLogin(): string | undefined {
-  return process.env.ALLOWED_GITHUB_LOGIN;
+/** The single allowed GitHub account: by numeric ID (ALLOWED_GITHUB_ID), or by
+ * login (ALLOWED_GITHUB_LOGIN) only when no ID is set. Everyone else is a public
+ * visitor. See lib/allowlist.ts. */
+export function allowlist(): AllowlistConfig {
+  return allowlistFromEnv(process.env);
 }
 
 export function isAllowed(session: Session | null): boolean {
-  const allowed = allowedLogin();
-  return !!session && !!allowed && session.login.toLowerCase() === allowed.toLowerCase();
+  // An old cookie without an `id` fails here once ALLOWED_GITHUB_ID is set, so
+  // requireAdmin() sends the owner back through login, which mints a new one.
+  return isAllowedIdentity(session, allowlist());
 }
 
 /** Memoized per request — the admin session, or null for a public visitor. */
