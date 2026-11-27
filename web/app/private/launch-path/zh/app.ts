@@ -1,0 +1,155 @@
+// Chinese strings for the Launch Path tab, keyed by the exact English source text.
+// A missing key falls back to English. {name} placeholders must match the English key.
+// This file covers the page shell, Today, Path and the Day/Timing intros (LaunchPath.tsx).
+export const ZH_APP: Record<string, string> = {
+  // Shell
+  "Private": "私人区",
+  "Lia's Launch Path": "Lia 的求职冲刺",
+  "A LeetCode-first interview sprint for junior SWE and AI engineer roles. Change any date, hour or target on the Path tab.":
+    "以 LeetCode 为主线的面试冲刺，目标是初级 SWE 和 AI 工程师岗位。日期、时长和目标都可以在「路线」页修改。",
+  "Language": "语言",
+  "Style": "风格",
+  "Classic": "经典",
+  "Pixel": "像素",
+  "Bubbly": "圆润",
+  "Poster": "海报",
+  "Sections": "栏目",
+  "Today": "今天",
+  "Path": "路线",
+  "Day": "一天",
+  "Timing": "时机",
+  "Chart reading": "命盘解读",
+  "Toolkit": "工具箱",
+  "{n} / {total} items": "{n} / {total} 项",
+  "Prep sprint · starts {d} · {n} days": "冲刺 · {d} 开始 · 共 {n} 天",
+  "Prep sprint · ended {d}": "冲刺 · 已于 {d} 结束",
+  "Day {n} of {total} · {left} days left · ends {d}": "第 {n} / {total} 天 · 还剩 {left} 天 · {d} 结束",
+
+  // Save status
+  "Synced with lia-til": "已与 lia-til 同步",
+  "Saving…": "保存中…",
+  "Saved": "已保存",
+  "Saved {d} to the daily log": "已把 {d} 存入每日日志",
+  "Not saved: {e}": "未保存：{e}",
+  "Pick a date first.": "请先选一个日期。",
+  "Finish date must be after the start date.": "结束日期必须晚于开始日期。",
+
+  // Today: Now card
+  "Now · block {n} of {total}": "现在 · 第 {n} / {total} 段",
+  "Before the day starts": "今天还没开始",
+  "Today's blocks are done": "今天的时段都结束了",
+  "First block at {tm}: {title}": "{tm} 第一段：{title}",
+  "Log what you did, then stop.": "记下今天做了什么，然后收工。",
+  "Step away from the screen. Water, a short walk.": "离开屏幕，喝点水，走一走。",
+  "Warm up with one easy redo if you want a head start.": "想提前进入状态的话，先做一道简单的重做题热身。",
+  "Target was {n} new problems. A bad-energy day still counts with 2 new and 1 redo.":
+    "今天目标是 {n} 道新题。状态差的日子，做 2 道新题加 1 道重做也算数。",
+  "{n} min left": "还剩 {n} 分钟",
+  "{n} min to start": "{n} 分钟后开始",
+  "Solved, no hint": "独立做出",
+  "Solved with a hint": "看了提示做出",
+  "Redo": "重做",
+  "+1 solved, no hint": "+1 独立做出",
+  "+1 solved with a hint": "+1 看提示做出",
+  "+1 redo": "+1 重做",
+  "Add one: {what}": "加一：{what}",
+  "Remove one: {what}": "减一：{what}",
+  "Undo one": "撤销一次",
+  "{n} of {target} new today": "今天新题 {n} / {target}",
+  "Next": "下一段",
+
+  // Today: glance
+  "Sprint at a glance": "冲刺概览",
+  "{n} / day": "{n} 道 / 天",
+  "pace needed for {goal} by {d}": "{d} 前完成 {goal} 道所需的速度",
+  "sprint window is over": "冲刺期已结束",
+  "ahead of plan": "领先计划",
+  "behind plan": "落后计划",
+  "vs plan, after your first log": "记录第一天后显示与计划的差距",
+  "solved with no hint · {nh} of {nw}": "独立做出 · {nh} / {nw}",
+  "{n} day": "{n} 天",
+  "{n} days": "{n} 天",
+  "logging streak": "连续记录",
+  "streak starts with today's log": "今天记录后开始连续计数",
+  "{rd} redo · {mk} timed mocks · {hr} h logged": "重做 {rd} 道 · 计时模拟 {mk} 次 · 已记录 {hr} 小时",
+
+  // Today: heatmap, burn-up, phase
+  "{n}-day sprint": "{n} 天冲刺",
+  "Fewer": "少",
+  "More new problems (target {n})": "多（每日目标 {n} 道新题）",
+  "◆ chart milestone": "◆ 命盘节点",
+  "new this week · {r} redo": "本周新题 · 重做 {r} 道",
+  "days logged this week": "本周记录天数",
+  "best day · {d}": "最佳一天 · {d}",
+  "best day so far": "目前最佳一天",
+  "One square per day. Today is outlined; dashed squares are still ahead. Hover a square for that day's numbers.":
+    "一格代表一天。描边的是今天，虚线格是还没到的日子。把鼠标移到格子上可以看当天的数字。",
+  "Total vs plan": "累计 vs 计划",
+  "You": "你",
+  "– – Plan": "– – 计划",
+  "··· Your pace": "··· 按当前速度",
+  "Ahead": "领先",
+  "Behind": "落后",
+  "A problem counts as solved only if you could write it again tomorrow without looking. Anything you finished with the solution open goes in \"Redo\" instead.":
+    "只有明天不看答案也能重新写出来，才算做出。开着题解完成的题，记到「重做」里。",
+  "Current phase · {a} – {b}": "当前阶段 · {a} – {b}",
+  "Next three unchecked": "接下来三项",
+  "Everything is checked. Go take the offer.": "全部完成，去拿 offer。",
+  "Today's schedule": "今日安排",
+  "{st} study · LeetCode {lc} ({pct}%)": "学习 {st} · LeetCode {lc}（{pct}%）",
+  "Mocks, hours, a note, or another day": "模拟、时长、备注或其他日期",
+  "The buttons above cover new problems and redos. Use this for everything else.":
+    "上面的按钮负责新题和重做，其他内容在这里填。",
+  "Roadmap": "路线图",
+  "Done": "已完成",
+  "To do": "待完成",
+  "Each bar fills as you tick items in that phase. Change phase lengths on the Path tab and this redraws.":
+    "勾选某阶段的任务，对应的条就会填满。在「路线」页改阶段天数，这里会重画。",
+  "Progress by track": "各方向进度",
+
+  // Log form
+  "Edit any day": "编辑任意一天",
+  "Date": "日期",
+  "New problems solved": "新题数",
+  "…of those, no hint": "…其中独立做出",
+  "Redo problems": "重做题数",
+  "Timed mocks": "计时模拟",
+  "Hours studied": "学习时长（小时）",
+  "One-line win or blocker": "一句话：进展或卡点",
+  "e.g. sliding window clicked; stuck on #76": "例如：滑动窗口开窍了；卡在 #76",
+  "Save day": "保存这一天",
+
+  // Path
+  "Plan settings": "计划设置",
+  "Change anything here and every date, schedule and chart on the page follows. To shorten or stretch one phase, edit its day count below. To move the whole finish line, set \"Finish by\" and press Fit.":
+    "这里改任何一项，页面上的日期、安排和图表都会跟着变。想缩短或拉长某个阶段，改下面的天数；想移动整体终点，设置「完成日期」后点「按日期调整」。",
+  "Start date": "开始日期",
+  "Finish by": "完成日期",
+  "Study hours per day": "每天学习小时数",
+  "Day starts at": "每天开始时间",
+  "New problems per day": "每天新题数",
+  "Total problem goal": "总题量目标",
+  "Fit phases to finish date": "按日期调整阶段",
+  "{total} days · {split} · goal {goal} ≈ {rate} new / day": "{total} 天 · {split} · 目标 {goal} 道 ≈ 每天 {rate} 道新题",
+  "Now · {tag}": "当前 · {tag}",
+  "Days for {name}": "{name} 的天数",
+  "days": "天",
+
+  // Day and Timing views
+  "One template for every day. LeetCode takes the three morning-and-early-afternoon blocks while focus is freshest. The fourth block rotates by weekday so the novelty-hungry side stays engaged. Change your hours or start time on the Path tab and every block rescales.":
+    "每天用同一个模板。上午到午后精力最好的三段都给 LeetCode。第四段按星期轮换，让爱新鲜感的那部分你保持投入。在「路线」页改时长或开始时间，每一段都会按比例调整。",
+  "The day, block by block": "一天的分段",
+  "LeetCode": "LeetCode",
+  "Rotating track": "轮换方向",
+  "Output + applications": "产出 + 投递",
+  "Break": "休息",
+  "Dates come straight from the precomputed charts. They are a pacing guide, not a forecast. The job market and your prep set the real calendar.":
+    "日期直接来自已排好的命盘。它们是节奏参考，不是预言。真正的时间表由就业市场和你的准备决定。",
+  "Cycles, 2026–2028": "周期，2026–2028",
+  "Your plan": "你的计划",
+  "Favorable": "有利",
+  "Caution": "注意",
+  "Background theme": "背景主题",
+  "Each row comes from one system. Hover any bar or diamond for details. The dashed line is today.":
+    "每一行来自一个体系。鼠标移到条或菱形上可看详情。虚线是今天。",
+};

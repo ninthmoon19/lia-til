@@ -1,0 +1,183 @@
+/* Optional visual styles for the Launch Path tab, picked with the style switch
+   and stored per browser. The client sets data-skin on the .lp root; "classic"
+   is the original look in launch-path.css. Each skin first redefines the shared
+   tokens (so charts, heatmap and pills follow), then overrides a few shapes.
+   Skins are single-look by design: Pixel is dark, Bubbly and Poster are light,
+   whatever the OS theme. Selectors are .lp[data-skin=…] (0,2,0+), so they beat
+   both the base rules and the base dark-mode block. */
+
+/* ---- shared: icons and the switches (all skins) ---- */
+.lp .ico { width: 1.05em; height: 1.05em; flex: none; stroke-width: 2.2 }
+.lp .prefs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end }
+.lp .skin { align-items: center }
+.lp .skin > .ico { color: var(--muted); margin: 0 4px 0 6px }
+.lp nav.tabs a { display: inline-flex; align-items: center; gap: 6px }
+.lp nav.tabs a .ico { opacity: .75 }
+.lp nav.tabs a[aria-current="page"] .ico { opacity: 1; color: var(--accent) }
+.lp .tap-add .ico { font-size: 18px; margin-bottom: 2px }
+.lp .tap.noHint .ico { color: var(--s3) }
+.lp .tap.hint .ico { color: var(--s4) }
+.lp .tap.redo .ico { color: var(--s2) }
+@media (max-width: 560px) { .lp .toprow { flex-wrap: wrap } }
+
+/* =========================================================================
+   PIXEL: an 8-bit screen. Pixel type for headings and numbers, a terminal
+   face for labels, plain sans for paragraphs so long text stays readable.
+   ========================================================================= */
+.lp[data-skin="pixel"] {
+  --bg: #2b2140; --surface: #3b2d5c; --ink: #fff6e0; --muted: #c9bbea; --line: #16101f;
+  --accent: #3bceac; --accent-soft: #2a4f63; --warm: #ffd23f; --warm-soft: #57492c; --bad: #ff5c7c; --bad-soft: #5a2a44;
+  --s1: #3bceac; --s2: #ff5c7c; --s3: #8be04e; --s4: #ffd23f; --s5: #b48cff; --plan-soft: #4b3a74; --neutral-soft: #4b3a74;
+  --empty: #4b3a74; --h1: #1f6b5e; --h2: #2aa189; --h3: #3bceac; --h4: #ffd23f;
+  --f-display: var(--lp-font-pixel), var(--f-zh), monospace;
+  --f-mono: var(--lp-font-pixel-text), ui-monospace, var(--f-zh), monospace;
+  --px-shadow: 4px 4px 0 #16101f;
+  color-scheme: dark;
+  background-image: radial-gradient(#ffffff0d 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+.lp[data-skin="pixel"] * { border-radius: 0 !important }
+/* Press Start 2P is very wide: everything set in it runs smaller. */
+.lp[data-skin="pixel"] h1 { font-size: clamp(18px, 3.6vw, 28px); line-height: 1.45; letter-spacing: 0 }
+.lp[data-skin="pixel"] h2 { font-size: 16px; line-height: 1.5 }
+.lp[data-skin="pixel"] h3 { font-size: 12.5px; line-height: 1.6 }
+/* The pixel face has no Chinese glyphs, so Chinese falls back to a normal face
+   and needs normal heading sizes. */
+.lp[data-skin="pixel"] [lang="zh-Hans"] h1 { font-size: clamp(26px, 5vw, 38px); line-height: 1.25 }
+.lp[data-skin="pixel"] [lang="zh-Hans"] h2 { font-size: 21px }
+.lp[data-skin="pixel"] [lang="zh-Hans"] h3 { font-size: 16px }
+.lp[data-skin="pixel"] [lang="zh-Hans"] .now-title { font-size: clamp(19px, 2.6vw, 23px); font-weight: 700 }
+.lp[data-skin="pixel"] .now-title { font-size: clamp(14px, 2vw, 17px); line-height: 1.6 }
+.lp[data-skin="pixel"] .tap-add .v { font-size: 20px; line-height: 1.3 }
+.lp[data-skin="pixel"] .klist dt, .lp[data-skin="pixel"] .heatside dt { font-size: 15px; line-height: 1.5 }
+.lp[data-skin="pixel"] .kpi .big { font-size: 20px }
+.lp[data-skin="pixel"] .rule .n { font-size: 16px }
+.lp[data-skin="pixel"] .ring-big { font-size: 18px }
+/* VT323 is short: labels and data text run larger. */
+.lp[data-skin="pixel"] .mono, .lp[data-skin="pixel"] .status { font-size: 17px }
+.lp[data-skin="pixel"] .label { font-size: 16px; letter-spacing: .04em }
+.lp[data-skin="pixel"] .axis, .lp[data-skin="pixel"] .sublbl { font-size: 14px }
+.lp[data-skin="pixel"] .pill, .lp[data-skin="pixel"] .tk, .lp[data-skin="pixel"] .flag { font-size: 15px }
+.lp[data-skin="pixel"] .sched .tm, .lp[data-skin="pixel"] .sched .du, .lp[data-skin="pixel"] .timeline .when { font-size: 16px }
+/* Blocks with hard pixel shadows. */
+.lp[data-skin="pixel"] .card, .lp[data-skin="pixel"] .vizcard, .lp[data-skin="pixel"] .phase, .lp[data-skin="pixel"] .today,
+.lp[data-skin="pixel"] .kpi, .lp[data-skin="pixel"] .tablebox, .lp[data-skin="pixel"] .nowcard {
+  border: 3px solid var(--line); box-shadow: var(--px-shadow) }
+.lp[data-skin="pixel"] .nowcard { border-color: var(--accent); box-shadow: var(--px-shadow), inset 0 6px 0 var(--accent) }
+.lp[data-skin="pixel"] .today { border-left: 8px solid var(--accent) }
+.lp[data-skin="pixel"] .tap-add { background: #4b3a74; border: 3px solid var(--line); box-shadow: 3px 3px 0 var(--line) }
+.lp[data-skin="pixel"] .tap-add:hover { border-color: var(--warm) }
+.lp[data-skin="pixel"] .tap-add:active { transform: translate(3px, 3px); box-shadow: none }
+.lp[data-skin="pixel"] .btn { background: var(--warm); color: #2b2140; border: 3px solid var(--line); box-shadow: 3px 3px 0 var(--line) }
+.lp[data-skin="pixel"] .btn:active { transform: translate(3px, 3px); box-shadow: none }
+/* Health-bar style progress. */
+.lp[data-skin="pixel"] .tbar, .lp[data-skin="pixel"] .bar { height: 14px; background: #16101f; border: 2px solid #16101f }
+.lp[data-skin="pixel"] .tbar.thin { height: 10px }
+.lp[data-skin="pixel"] .tbar > i, .lp[data-skin="pixel"] .bar > i {
+  background: repeating-linear-gradient(90deg, var(--accent) 0 10px, #2aa189 10px 12px) }
+.lp[data-skin="pixel"] nav.tabs { border-bottom: 3px solid var(--line) }
+.lp[data-skin="pixel"] nav.tabs a { font: 400 16px/1 var(--f-mono); padding: 8px 12px; border: 3px solid transparent }
+.lp[data-skin="pixel"] nav.tabs a[aria-current="page"] { background: var(--surface); border-color: var(--line); box-shadow: 3px 3px 0 var(--line) }
+.lp[data-skin="pixel"] .lang { border: 3px solid var(--line); background: var(--surface) }
+.lp[data-skin="pixel"] .lang button { font: 400 16px/1 var(--f-mono) }
+.lp[data-skin="pixel"] .lang button[aria-pressed="true"] { background: var(--warm); color: #2b2140 }
+.lp[data-skin="pixel"] .fld input, .lp[data-skin="pixel"] .ph-days input { border: 2px solid var(--line); background: #2b2140 }
+.lp[data-skin="pixel"] .items input { accent-color: var(--warm) }
+.lp[data-skin="pixel"] .klist > div { border-left-width: 6px }
+
+/* =========================================================================
+   BUBBLY: chunky, rounded, press-down buttons, bright green and blue.
+   ========================================================================= */
+.lp[data-skin="bubbly"] {
+  --bg: #f7f7f7; --surface: #ffffff; --ink: #3c3c3c; --muted: #6f6f6f; --line: #e5e5e5;
+  --accent: #46a302; --accent-soft: #e6f8d6; --warm: #d97a00; --warm-soft: #fff1dc; --bad: #e0393e; --bad-soft: #ffe3e3;
+  --s1: #1cb0f6; --s2: #ff9600; --s3: #58cc02; --s4: #ce82ff; --s5: #ff6fb5; --plan-soft: #ddf4ff; --neutral-soft: #eeeeee;
+  --empty: #eeeeee; --h1: #d7ffb8; --h2: #a5ed6e; --h3: #58cc02; --h4: #3f9a00;
+  --f-display: var(--lp-font-round), var(--f-zh), system-ui, sans-serif;
+  --f-body: var(--lp-font-round), var(--f-zh), system-ui, sans-serif;
+  --chunk: 0 4px 0 #e5e5e5;
+  color-scheme: light;
+  font-weight: 600;
+}
+.lp[data-skin="bubbly"] h1 { font-weight: 900; letter-spacing: -.01em }
+.lp[data-skin="bubbly"] h2, .lp[data-skin="bubbly"] h3 { font-weight: 800 }
+.lp[data-skin="bubbly"] .card, .lp[data-skin="bubbly"] .vizcard, .lp[data-skin="bubbly"] .phase, .lp[data-skin="bubbly"] .today,
+.lp[data-skin="bubbly"] .kpi, .lp[data-skin="bubbly"] .tablebox {
+  border: 2px solid var(--line); border-radius: 20px; box-shadow: var(--chunk) }
+.lp[data-skin="bubbly"] .today { border-left: 2px solid var(--line) }
+.lp[data-skin="bubbly"] .nowcard { border: 2px solid #1cb0f6; border-radius: 20px; box-shadow: 0 4px 0 #1899d6 }
+.lp[data-skin="bubbly"] .tap-add { border: 2px solid var(--line); border-radius: 16px; background: #fff; box-shadow: var(--chunk); padding: 11px 12px }
+.lp[data-skin="bubbly"] .tap-add .v { font-weight: 900 }
+.lp[data-skin="bubbly"] .tap-add:hover { border-color: #1cb0f6 }
+.lp[data-skin="bubbly"] .tap-add:active { transform: translateY(4px); box-shadow: none }
+.lp[data-skin="bubbly"] .tap.noHint .tap-add { background: #58cc02; border-color: #58a700; color: #fff; box-shadow: 0 4px 0 #58a700 }
+.lp[data-skin="bubbly"] .tap.noHint .tap-add .k, .lp[data-skin="bubbly"] .tap.noHint .tap-add .ico { color: #f0ffe4 }
+.lp[data-skin="bubbly"] .tap.noHint .tap-undo { color: #f0ffe4 }
+.lp[data-skin="bubbly"] .tbar, .lp[data-skin="bubbly"] .bar { height: 16px; border-radius: 99px; background: #e5e5e5 }
+.lp[data-skin="bubbly"] .tbar.thin { height: 12px }
+.lp[data-skin="bubbly"] .tbar > i, .lp[data-skin="bubbly"] .bar > i {
+  background: #58cc02; border-radius: 99px; box-shadow: inset 0 -4px 0 #0000001a, inset 0 4px 0 #ffffff40 }
+.lp[data-skin="bubbly"] .btn { background: #1cb0f6; border-radius: 14px; box-shadow: 0 4px 0 #1899d6; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 11px 18px }
+.lp[data-skin="bubbly"] .btn:active { transform: translateY(4px); box-shadow: none }
+.lp[data-skin="bubbly"] nav.tabs { border-bottom: 2px solid var(--line) }
+.lp[data-skin="bubbly"] nav.tabs a { border-radius: 14px; font-weight: 800; border: 2px solid transparent }
+.lp[data-skin="bubbly"] nav.tabs a[aria-current="page"] { background: #ddf4ff; color: #1899d6; border-color: #84d8ff; box-shadow: none }
+.lp[data-skin="bubbly"] nav.tabs a[aria-current="page"] .ico { color: #1899d6 }
+.lp[data-skin="bubbly"] .lang { border: 2px solid var(--line); border-radius: 14px }
+.lp[data-skin="bubbly"] .lang button { border-radius: 10px; font-weight: 800 }
+.lp[data-skin="bubbly"] .lang button[aria-pressed="true"] { background: #ddf4ff; color: #1899d6 }
+.lp[data-skin="bubbly"] .pill { border-radius: 99px; font-family: var(--f-body); font-weight: 800 }
+.lp[data-skin="bubbly"] .fld input, .lp[data-skin="bubbly"] .ph-days input { border: 2px solid var(--line); border-radius: 12px; background: #f7f7f7 }
+.lp[data-skin="bubbly"] .items input { accent-color: #58cc02 }
+.lp[data-skin="bubbly"] .klist > div { border-left: 0; padding: 8px 10px; border-radius: 14px; background: #f7f7f7 }
+.lp[data-skin="bubbly"] .klist > div.ok { background: #e6f8d6 } .lp[data-skin="bubbly"] .klist > div.warn { background: #fff1dc }
+.lp[data-skin="bubbly"] .label { font-family: var(--f-body); font-weight: 800; letter-spacing: .06em }
+
+/* =========================================================================
+   POSTER: Swiss poster. Black type, one red, square corners, thick rules.
+   The Now card is the single black block on the page.
+   ========================================================================= */
+.lp[data-skin="poster"] {
+  --bg: #ffffff; --surface: #ffffff; --ink: #111111; --muted: #555555; --line: #111111;
+  --accent: #e30613; --accent-soft: #ffe3e5; --warm: #111111; --warm-soft: #ececec; --bad: #e30613; --bad-soft: #ffe3e5;
+  --s1: #e30613; --s2: #111111; --s3: #8a8a8a; --s4: #f2b400; --s5: #5a5a5a; --plan-soft: #f1f1f1; --neutral-soft: #ececec;
+  --empty: #f1f1f1; --h1: #ffc2c6; --h2: #ff6b75; --h3: #e30613; --h4: #8a0009;
+  --f-display: var(--lp-font-poster), var(--f-zh), "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+.lp[data-skin="poster"] * { border-radius: 0 !important }
+.lp[data-skin="poster"] header.top { border-bottom: 8px solid var(--ink); padding-bottom: 20px }
+.lp[data-skin="poster"] h1 { font-size: clamp(34px, 7vw, 64px); line-height: .98; font-weight: 400; letter-spacing: -.02em }
+.lp[data-skin="poster"] [lang="zh-Hans"] h1 { font-weight: 900; letter-spacing: 0 }
+.lp[data-skin="poster"] h2, .lp[data-skin="poster"] h3 { font-weight: 400 }
+.lp[data-skin="poster"] [lang="zh-Hans"] h2, .lp[data-skin="poster"] [lang="zh-Hans"] h3 { font-weight: 800 }
+.lp[data-skin="poster"] .card, .lp[data-skin="poster"] .vizcard, .lp[data-skin="poster"] .phase, .lp[data-skin="poster"] .today,
+.lp[data-skin="poster"] .kpi, .lp[data-skin="poster"] .tablebox { border: 2px solid var(--ink) }
+.lp[data-skin="poster"] .today { border-left: 14px solid var(--accent) }
+.lp[data-skin="poster"] .nowcard {
+  --surface: #111111; --ink: #ffffff; --muted: #bdbdbd; --line: #3a3a3a; --bg: #1d1d1d; --empty: #333333; --accent-soft: #3a0a0d;
+  background: #111; color: #fff; border: 0; box-shadow: inset 0 10px 0 var(--accent) }
+.lp[data-skin="poster"] .nowcard .tap-add { border: 2px solid #3a3a3a }
+.lp[data-skin="poster"] .nowcard .tap-add:hover { border-color: #fff }
+.lp[data-skin="poster"] .tap.noHint .tap-add { background: var(--accent); border-color: var(--accent) }
+.lp[data-skin="poster"] .tap.noHint .tap-add .k, .lp[data-skin="poster"] .tap.noHint .tap-add .ico, .lp[data-skin="poster"] .tap.noHint .tap-undo { color: #fff }
+.lp[data-skin="poster"] .tap.hint .ico, .lp[data-skin="poster"] .tap.redo .ico { color: #fff }
+.lp[data-skin="poster"] .tap-add .v, .lp[data-skin="poster"] .klist dt, .lp[data-skin="poster"] .heatside dt, .lp[data-skin="poster"] .kpi .big { font-weight: 400 }
+.lp[data-skin="poster"] .tap-add .v { font-size: 34px }
+.lp[data-skin="poster"] .heatside dt { font-size: 30px }
+.lp[data-skin="poster"] .tbar, .lp[data-skin="poster"] .bar { height: 12px }
+.lp[data-skin="poster"] .btn { background: var(--ink); color: #fff; text-transform: uppercase; letter-spacing: .08em }
+.lp[data-skin="poster"] .btn:hover { background: var(--accent); filter: none }
+.lp[data-skin="poster"] nav.tabs { border-bottom: 2px solid var(--ink) }
+.lp[data-skin="poster"] nav.tabs a { text-transform: uppercase; letter-spacing: .06em; font-size: 13px }
+.lp[data-skin="poster"] nav.tabs a[aria-current="page"] { background: var(--ink); color: #fff; box-shadow: none }
+.lp[data-skin="poster"] nav.tabs a[aria-current="page"] .ico { color: #fff }
+.lp[data-skin="poster"] .lang { border: 2px solid var(--ink) }
+.lp[data-skin="poster"] .lang button[aria-pressed="true"] { background: var(--ink); color: #fff }
+.lp[data-skin="poster"] .fld input, .lp[data-skin="poster"] .ph-days input { border: 2px solid var(--ink); background: #fff }
+.lp[data-skin="poster"] .items input { accent-color: var(--accent) }
+.lp[data-skin="poster"] .klist > div { border-left-width: 6px }
+.lp[data-skin="poster"] .klist > div.ok { border-left-color: var(--ink) } .lp[data-skin="poster"] .klist > div.warn { border-left-color: var(--accent) }
+.lp[data-skin="poster"] .pill { background: var(--ink); color: #fff }
+.lp[data-skin="poster"] .pill.warm, .lp[data-skin="poster"] .pill.bad { background: var(--accent); color: #fff }
+.lp[data-skin="poster"] .pill.ink { background: #ececec; color: var(--ink) }

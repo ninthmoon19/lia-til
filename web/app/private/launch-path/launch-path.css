@@ -8,15 +8,18 @@
 .lp {
   --bg: #eef1f5; --surface: #ffffff; --ink: #18213a; --muted: #5a6479; --line: #d5dbe5;
   --accent: #1f7a6d; --accent-soft: #dcefeb; --warm: #b5651d; --warm-soft: #f6e7d6; --bad: #a83a3a; --bad-soft: #f5e1e1;
-  --f-display: var(--lp-font-display), "Avenir Next", system-ui, sans-serif;
-  --f-body: var(--lp-font-body), system-ui, -apple-system, sans-serif;
-  --f-mono: var(--lp-font-mono), ui-monospace, Menlo, monospace;
+  --f-display: var(--lp-font-display), "Avenir Next", var(--f-zh), system-ui, sans-serif;
+  --f-zh: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei";
+  --f-body: var(--lp-font-body), var(--f-zh), system-ui, -apple-system, sans-serif;
+  --f-mono: var(--lp-font-mono), ui-monospace, Menlo, var(--f-zh), monospace;
   --f-cjk: var(--lp-font-cjk), "Songti SC", "STSong", serif;
   --f-glyph: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
   /* chart series (validated: adjacent CVD ΔE ≥ 8.4, normal ≥ 19.8) */
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #8a5cd0; /* RA track; added later, not part of the validated set above */
   --plan-soft: #dbe8f8; --neutral-soft: #e2e6ee;
+  /* heatmap ramp (one hue, light to dark) and the empty-day fill */
+  --empty: #e2e6ee; --h1: #c9def6; --h2: #8ab8ec; --h3: #4f94e0; --h4: #2a78d6;
   background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body);
   padding: 0 max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px));
   flex: 1;
@@ -26,6 +29,7 @@
     --bg: #0f1524; --surface: #172036; --ink: #e4e8f1; --muted: #9aa4ba; --line: #2a3552;
     --accent: #5cc2b1; --accent-soft: #18342f; --warm: #e0a060; --warm-soft: #3a2a18; --bad: #e78585; --bad-soft: #3a1e22;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #9b78e0; --plan-soft: #1c3150; --neutral-soft: #232d45;
+    --empty: #232d45; --h1: #1d3558; --h2: #245a99; --h3: #2f78cc; --h4: #5aa2f0;
     color-scheme: dark;
   }
 }
@@ -41,6 +45,13 @@
 .lp .label { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
 .lp .back { font-size: 13px; color: var(--muted); text-decoration: none }
 .lp .back:hover { color: var(--ink) }
+.lp .toprow { display: flex; justify-content: space-between; align-items: center; gap: 12px }
+.lp .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: var(--surface) }
+.lp .lang button { font: 600 12.5px var(--f-body); color: var(--muted); background: none; border: 0; border-radius: 6px; padding: 4px 10px; cursor: pointer }
+.lp .lang button[aria-pressed="true"] { color: var(--ink); background: var(--accent-soft) }
+.lp .lang button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+/* Chinese reads badly tracked out and has no case, so labels drop both. */
+.lp [lang="zh-Hans"] .label { letter-spacing: .02em; text-transform: none }
 .lp header.top { padding-block: 32px 16px; display: grid; gap: 10px }
 .lp header.top .sub { color: var(--muted); max-width: 65ch }
 .lp .overall { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
@@ -179,3 +190,50 @@
 .lp .note { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px }
 @media (max-width: 560px) { .lp .timeline li { grid-template-columns: 1fr; gap: 4px } }
 @media (prefers-reduced-motion: reduce) { .lp * { transition: none !important } }
+
+/* ---- Today: Now card, glance, heatmap ---- */
+.lp .row2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; align-items: stretch }
+@media (max-width: 820px) { .lp .row2 { grid-template-columns: 1fr } }
+.lp .nowcard { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0;
+  box-shadow: inset 0 4px 0 var(--accent) }
+.lp .now-title { font: 700 clamp(21px, 3vw, 27px)/1.2 var(--f-display); text-wrap: balance; display: flex; align-items: baseline; gap: 2px }
+.lp .now-title .dot, .lp .now-next .dot { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 8px; background: var(--c); flex: none }
+.lp .tbar { height: 10px; border-radius: 5px; background: var(--empty); overflow: hidden }
+.lp .tbar.thin { height: 6px; flex: 1 }
+.lp .tbar > i { display: block; height: 100%; background: var(--accent); border-radius: 5px; transition: width .4s }
+.lp .now-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); flex-wrap: wrap }
+.lp .taps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px }
+@media (max-width: 420px) { .lp .taps { grid-template-columns: 1fr } }
+.lp .tap { position: relative; display: grid }
+.lp .tap-add { font: inherit; text-align: left; cursor: pointer; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 11px; display: grid; gap: 1px; touch-action: manipulation; transition: border-color .15s, transform .08s }
+.lp .tap-add:hover { border-color: var(--accent) }
+.lp .tap-add:active { transform: scale(.97) }
+.lp .tap-add .v { font: 700 26px/1.1 var(--f-display); font-variant-numeric: tabular-nums }
+.lp .tap-add .k { font-size: 12.5px; color: var(--muted) }
+.lp .tap-undo { position: absolute; top: 6px; right: 6px; font: 500 11px var(--f-mono); color: var(--muted); background: transparent; border: 1px solid transparent;
+  border-radius: 5px; padding: 1px 5px; cursor: pointer }
+.lp .tap-undo:hover:not(:disabled) { border-color: var(--line); color: var(--ink) }
+.lp .tap-undo:disabled { opacity: .35; cursor: default }
+.lp .now-goal { display: flex; align-items: center; gap: 10px; color: var(--muted) }
+.lp .now-next { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; flex-wrap: wrap; padding-top: 8px; border-top: 1px dashed var(--line) }
+.lp .ringwrap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center }
+@media (max-width: 420px) { .lp .ringwrap { grid-template-columns: 1fr; justify-items: center } }
+.lp .ring-big { font: 700 28px var(--f-display); fill: var(--ink); font-variant-numeric: tabular-nums }
+.lp .klist { margin: 0; display: grid; gap: 10px; min-width: 0 }
+.lp .klist > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; align-items: center; padding-left: 10px; border-left: 3px solid var(--line) }
+.lp .klist > div.ok { border-left-color: var(--accent) } .lp .klist > div.warn { border-left-color: var(--warm) }
+.lp .klist dt { font: 700 19px/1.2 var(--f-display); font-variant-numeric: tabular-nums; grid-column: 1 }
+.lp .klist dd { margin: 0; font-size: 12.5px; color: var(--muted); grid-column: 1 }
+.lp .klist .spark { grid-column: 2; grid-row: 1 / span 2; overflow: visible }
+.lp .heatrow { display: flex; gap: 28px; align-items: center; flex-wrap: wrap }
+.lp .heatrow .vizbox { min-width: 0; max-width: 100% }
+.lp .vizbox > svg.heat { min-width: 0; width: auto; max-width: none }
+.lp .heatside { margin: 0; display: grid; gap: 12px; flex: 1; min-width: 180px }
+.lp .heatside dt { font: 700 22px/1.1 var(--f-display); font-variant-numeric: tabular-nums }
+.lp .heatside dd { margin: 0; font-size: 12.5px; color: var(--muted) }
+.lp details.more > summary { cursor: pointer; list-style: none; display: grid; gap: 2px }
+.lp details.more > summary::-webkit-details-marker { display: none }
+.lp details.more > summary h3::before { content: "+ "; color: var(--accent) }
+.lp details.more[open] > summary h3::before { content: "– " }
+.lp .logform { display: grid; gap: 14px; min-width: 0 }

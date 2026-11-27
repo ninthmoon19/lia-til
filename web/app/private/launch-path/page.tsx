@@ -1,10 +1,11 @@
-import { Bricolage_Grotesque, IBM_Plex_Mono, IBM_Plex_Sans, Noto_Serif_SC } from "next/font/google";
+import { Archivo_Black, Bricolage_Grotesque, IBM_Plex_Mono, IBM_Plex_Sans, Noto_Serif_SC, Nunito, Press_Start_2P, VT323 } from "next/font/google";
 import { requireAdmin } from "@/lib/auth";
 import { DEFAULT_SETTINGS, logsFromDailyLog, parseSettings } from "@/lib/launchPath";
 import { getFullDailyLog, getLaunchPath } from "@/lib/private";
 import DataError from "@/app/components/DataError";
 import LaunchPath from "./LaunchPath";
 import "./launch-path.css";
+import "./skins.css";
 
 export const metadata = {
   title: "Private · Launch Path",
@@ -21,11 +22,19 @@ const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], 
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--lp-font-mono" });
 // CJK glyphs only appear on the chart-reading view; don't preload the big font.
 const cjk = Noto_Serif_SC({ weight: ["400", "600"], variable: "--lp-font-cjk", preload: false });
+// Faces for the optional visual styles (skins.css). Not preloaded: only the chosen style uses them.
+const pixel = Press_Start_2P({ subsets: ["latin"], weight: "400", variable: "--lp-font-pixel", preload: false });
+const pixelText = VT323({ subsets: ["latin"], weight: "400", variable: "--lp-font-pixel-text", preload: false });
+const round = Nunito({ subsets: ["latin"], weight: ["600", "800", "900"], variable: "--lp-font-round", preload: false });
+const poster = Archivo_Black({ subsets: ["latin"], weight: "400", variable: "--lp-font-poster", preload: false });
 
 export default async function LaunchPathPage() {
   await requireAdmin();
   const [plan, daily] = await Promise.all([getLaunchPath(), getFullDailyLog()]);
-  const fonts = `lp ${display.variable} ${body.variable} ${mono.variable} ${cjk.variable}`;
+  const fonts = [
+    "lp", display.variable, body.variable, mono.variable, cjk.variable,
+    pixel.variable, pixelText.variable, round.variable, poster.variable,
+  ].join(" ");
 
   if (!plan || !daily) {
     return (
