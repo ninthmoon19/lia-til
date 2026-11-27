@@ -65,3 +65,30 @@ test("parseSettings accepts the defaults and rejects out-of-range values", () =>
   assert.equal(parseSettings({ ...DEFAULT_SETTINGS, dayStart: "9am" }), null);
   assert.equal(parseSettings(null), null);
 });
+
+test("one-tap logging counts new, no-hint and redo, and undo never goes negative", async () => {
+  const { bumpLog } = await import("./launchPath.ts");
+  let l = bumpLog(undefined, "noHint", 1);
+  assert.deepEqual([l.newCount, l.noHint, l.redo], [1, 1, 0]);
+  l = bumpLog(l, "hint", 1);
+  assert.deepEqual([l.newCount, l.noHint], [2, 1]);
+  l = bumpLog(l, "redo", 1);
+  assert.equal(l.redo, 1);
+  // Undoing a hinted solve leaves the no-hint one alone.
+  l = bumpLog(l, "hint", -1);
+  assert.deepEqual([l.newCount, l.noHint], [1, 1]);
+  assert.deepEqual(bumpLog(l, "hint", -1), l);
+  l = bumpLog(bumpLog(l, "noHint", -1), "noHint", -1);
+  assert.deepEqual([l.newCount, l.noHint], [0, 0]);
+  // Other fields survive a tap.
+  const kept = bumpLog({ newCount: 3, noHint: 1, redo: 0, mocks: 1, hours: 4, note: "ok" }, "redo", 1);
+  assert.deepEqual([kept.mocks, kept.hours, kept.note], [1, 4, "ok"]);
+});
+
+test("projection and heatmap levels", async () => {
+  const { projectTotal, heatLevel } = await import("./launchPath.ts");
+  assert.equal(projectTotal(40, 10, 59), 236);
+  assert.equal(projectTotal(0, 2, 59), 0);
+  assert.equal(projectTotal(5, 0, 59), 5);
+  assert.deepEqual([0, 1, 2, 4, 5, 6].map((n) => heatLevel(n, 4)), [0, 1, 2, 3, 3, 4]);
+});

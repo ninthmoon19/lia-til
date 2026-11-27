@@ -1,10 +1,12 @@
 // The tab's charts, as pure components of (settings, phases, ticks, logs, today).
 // Ported from the original page's imperative SVG builders; geometry is unchanged.
 // Hover details ride on `data-tip` attributes, read by the tooltip in LaunchPath.
+// Text goes through useT(): English is the key, zh/charts.ts holds the Chinese.
 
-import type { DayLog, LaunchSettings } from "@/lib/launchPath";
+import { heatLevel, projectTotal, type DayLog, type LaunchSettings } from "@/lib/launchPath";
 import { ALL_ITEMS, KCOL, TL, TRACKS } from "./data";
-import { DAY, addDays, daysBetween, fmt, fmtS, hm, iso, pD, planEnd, type Phase, type SchedBlock } from "./plan";
+import { useT } from "./i18n";
+import { DAY, addDays, daysBetween, hm, iso, pD, planEnd, type Phase, type SchedBlock } from "./plan";
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VS15 = "︎"; // text-style variation selector for astro glyphs
@@ -13,6 +15,7 @@ const nextDay = (s: string) => new Date(pD(s).getTime() + DAY);
 
 /** Monday ticks along a date axis. */
 function DayAxis({ x, y0, t0, t1 }: { x: (d: Date) => number; y0: number; t0: Date; t1: Date }) {
+  const { fmtS } = useT();
   const out = [];
   for (let d = new Date(t0); d <= t1; d = new Date(d.getTime() + DAY)) {
     if (d.getDay() !== 1) continue;
@@ -30,20 +33,22 @@ function DayAxis({ x, y0, t0, t1 }: { x: (d: Date) => number; y0: number; t0: Da
 }
 
 export function Roadmap({ settings, phases, done, today }: { settings: LaunchSettings; phases: Phase[]; done: Set<string>; today: string }) {
+  const { t, fmt } = useT();
   const W = 900, H = 150, L = 12, R = 888;
   const t0 = pD(addDays(settings.start, -2)), t1 = pD(addDays(planEnd(phases), 3));
   const x = (d: Date) => L + ((R - L) * (d.getTime() - t0.getTime())) / (t1.getTime() - t0.getTime());
   const td = pD(today);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label="Roadmap of the study phases">
+    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label={t("Roadmap of the study phases")}>
       <line x1={L} x2={R} y1={120} y2={120} className="tick" />
       <DayAxis x={x} y0={120} t0={t0} t1={t1} />
       {phases.map((p) => {
         const a = x(pD(p.start)) + 1, b = x(nextDay(p.end)) - 1, w = b - a;
         const n = p.items.filter((i) => done.has(i.id)).length, f = n / p.items.length;
-        const tip = `${p.name} · ${fmt(p.start)} – ${fmt(p.end)} · ${n}/${p.items.length} done`;
-        const first = p.name.split(" ")[0];
-        const nm = textW(p.name) + 4 < w ? p.name : textW(first) + 4 < w ? first : "";
+        const name = t(p.name);
+        const tip = t("{name} · {start} – {end} · {n}/{total} done", { name, start: fmt(p.start), end: fmt(p.end), n, total: p.items.length });
+        const first = name.split(" ")[0];
+        const nm = textW(name) + 4 < w ? name : textW(first) + 4 < w ? first : "";
         return (
           <g key={p.id}>
             {nm && <text x={a + 2} y={46} className="lbl">{nm}</text>}
@@ -53,72 +58,28 @@ export function Roadmap({ settings, phases, done, today }: { settings: LaunchSet
           </g>
         );
       })}
-      {TL.filter(([w]) => ISO_RE.test(w)).map(([w, t, sys]) => {
+      {TL.filter(([w]) => ISO_RE.test(w)).map(([w, title, sys]) => {
         const d = pD(w);
         if (d < t0 || d > t1) return null;
         const X = x(d);
         return (
-          <path key={w + t} d={`M${X} 104 l5 6 l-5 6 l-5 -6z`} fill="var(--ink)" stroke="var(--surface)" strokeWidth={1.5}
-            data-tip={`${fmt(w)} · ${t} (${sys})`} style={{ cursor: "help" }} />
+          <path key={w + title} d={`M${X} 104 l5 6 l-5 6 l-5 -6z`} fill="var(--ink)" stroke="var(--surface)" strokeWidth={1.5}
+            data-tip={`${fmt(w)} · ${t(title)} (${t(sys)})`} style={{ cursor: "help" }} />
         );
       })}
       {td >= t0 && td <= t1 && (
         <>
           <line x1={x(td)} x2={x(td)} y1={20} y2={118} className="today-line" />
-          <text x={Math.min(Math.max(x(td), 24), R - 20)} y={14} className="today-txt" textAnchor="middle">Today</text>
+          <text x={Math.min(Math.max(x(td), 24), R - 20)} y={14} className="today-txt" textAnchor="middle">{t("Today")}</text>
         </>
       )}
     </svg>
   );
 }
 
-export function DailyChart({ settings, phases, logs, today }: { settings: LaunchSettings; phases: Phase[]; logs: Record<string, DayLog>; today: string }) {
-  const W = 900, H = 230, L = 34, R = 890, T = 16, B = 196;
-  const t0 = pD(settings.start), t1 = pD(planEnd(phases)), n = daysBetween(settings.start, planEnd(phases)) + 1;
-  const ymax = Math.max(settings.dailyNew * 2, 4, ...Object.values(logs).map((l) => l.newCount));
-  const bw = (R - L) / n;
-  const x = (d: Date) => L + bw * ((d.getTime() - t0.getTime()) / DAY);
-  const y = (v: number) => B - ((B - T) * v) / ymax;
-  const step = ymax <= 8 ? 2 : ymax <= 16 ? 4 : 5;
-  const grid = [];
-  for (let v = 0; v <= ymax; v += step)
-    grid.push(
-      <g key={v}>
-        <line x1={L} x2={R} y1={y(v)} y2={y(v)} className={v ? "gridl" : "tick"} />
-        <text x={L - 8} y={y(v) + 4} className="axis" textAnchor="end">{v}</text>
-      </g>,
-    );
-  const bars = [];
-  for (let i = 0; i < n; i++) {
-    const ds = addDays(settings.start, i), l = logs[ds], X = L + bw * i;
-    const w = Math.max(3, bw - 2), rx = Math.min(4, w / 2);
-    const nw = l?.newCount ?? 0, nh = Math.min(nw, l?.noHint ?? 0);
-    const tip = l
-      ? `${fmtS(ds)} · ${l.newCount} new (${l.noHint} no hint) · ${l.redo} redo${l.mocks ? ` · ${l.mocks} mock` : ""}${l.note ? " · " + l.note : ""}`
-      : `${fmtS(ds)} · not logged`;
-    bars.push(
-      <g key={ds}>
-        {nw > 0 && <rect x={X + 1} y={y(nw)} width={w} height={B - y(nw)} rx={rx} fill="var(--s1)" opacity={0.38} />}
-        {nh > 0 && <rect x={X + 1} y={y(nh)} width={w} height={B - y(nh)} rx={rx} fill="var(--s1)" />}
-        <rect x={X} y={T} width={bw} height={B - T} fill="transparent" data-tip={tip} />
-      </g>,
-    );
-  }
-  const td = pD(today);
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label="New problems solved per day versus the daily target">
-      {grid}
-      {bars}
-      <line x1={L} x2={R} y1={y(settings.dailyNew)} y2={y(settings.dailyNew)} stroke="var(--ink)" strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" />
-      <text x={R} y={y(settings.dailyNew) - 6} className="sublbl" textAnchor="end">{`target ${settings.dailyNew}/day`}</text>
-      {td >= t0 && td <= t1 && <line x1={x(td) + bw / 2} x2={x(td) + bw / 2} y1={T} y2={B} className="today-line" pointerEvents="none" />}
-      <DayAxis x={(d) => x(d) + bw / 2} y0={B} t0={t0} t1={t1} />
-    </svg>
-  );
-}
-
 export function CumChart({ settings, phases, logs, today }: { settings: LaunchSettings; phases: Phase[]; logs: Record<string, DayLog>; today: string }) {
-  const W = 900, H = 230, L = 40, R = 846, T = 16, B = 196;
+  const { t, fmtS } = useT();
+  const W = 900, H = 230, L = 40, R = 820, T = 16, B = 196;
   const t0 = pD(settings.start), t1 = pD(planEnd(phases)), n = daysBetween(settings.start, planEnd(phases));
   const span = Math.max(1, n);
   const x = (d: Date) => L + ((R - L) * ((d.getTime() - t0.getTime()) / DAY)) / span;
@@ -134,8 +95,12 @@ export function CumChart({ settings, phases, logs, today }: { settings: LaunchSe
     cum += logs[ds]?.newCount ?? 0;
     pts.push([ds, cum]);
   }
-  const ymax = Math.max(settings.goal, cum) * 1.05;
+  // Projection: the average so far (today counted as a day) carried to the end.
+  const elapsed = Math.min(n + 1, Math.max(0, daysBetween(settings.start, today) + 1));
+  const proj = cum > 0 && elapsed > 0 && today <= planEnd(phases) ? projectTotal(cum, elapsed, n + 1) : null;
+  const ymax = Math.max(settings.goal, cum, proj ?? 0) * 1.05;
   const y = (v: number) => B - ((B - T) * v) / ymax;
+  const plan = (ds: string) => (settings.goal * daysBetween(settings.start, ds)) / span;
   const step = ymax > 400 ? 100 : ymax > 150 ? 50 : 20;
   const grid = [];
   for (let v = 0; v <= ymax; v += step)
@@ -148,20 +113,43 @@ export function CumChart({ settings, phases, logs, today }: { settings: LaunchSe
   const lastPt = pts[pts.length - 1];
   const colW = (R - L) / span;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label="Cumulative problems solved versus plan pace">
+    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label={t("Cumulative problems solved versus plan pace")}>
       {grid}
+      {/* Green where you're ahead of the dashed plan, orange where you're behind. */}
+      {pts.slice(1).map(([ds, v], i) => {
+        const [pa, va] = pts[i];
+        const xa = x(pD(pa)), xb = x(pD(ds));
+        const ahead = va + v >= plan(pa) + plan(ds);
+        return (
+          <path key={ds} d={`M${xa} ${y(va)} L${xb} ${y(v)} L${xb} ${y(plan(ds))} L${xa} ${y(plan(pa))}Z`}
+            fill={ahead ? "var(--accent-soft)" : "var(--warm-soft)"} />
+        );
+      })}
       <line x1={x(t0)} y1={y(0)} x2={x(t1)} y2={y(settings.goal)} stroke="var(--muted)" strokeWidth={2} strokeDasharray="6 4" />
-      <text x={x(t1) + 6} y={y(settings.goal) + 4} className="sublbl">{`Plan ${settings.goal}`}</text>
-      {lastPt && (
+      <text x={x(t1) + 6} y={y(settings.goal) + 4} className="sublbl">{t("Plan {n}", { n: settings.goal })}</text>
+      {lastPt && proj !== null && (
+        <>
+          <line x1={x(pD(lastPt[0]))} y1={y(lastPt[1])} x2={x(t1)} y2={y(proj)} stroke="var(--s1)" strokeWidth={2}
+            strokeDasharray="1 5" strokeLinecap="round" />
+          <text x={x(t1) + 6} y={y(proj) + (Math.abs(y(proj) - y(settings.goal)) < 14 ? (proj >= settings.goal ? -10 : 18) : 4)}
+            className="lbl" data-tip={t("If your average so far holds, you finish with about {n}", { n: proj })}>{t("Pace {n}", { n: proj })}</text>
+        </>
+      )}
+      {cum === 0 && (
+        <text x={x(pD(today < settings.start ? settings.start : today)) + 10} y={y(0) - 10} className="lbl">
+          {t("Your line starts with the first problem you log. {n} a day keeps you on the dashed plan.", { n: settings.dailyNew })}
+        </text>
+      )}
+      {lastPt && cum > 0 && (
         <>
           <path d={pts.map(([ds, v], i) => `${i ? "L" : "M"}${x(pD(ds)).toFixed(1)} ${y(v).toFixed(1)}`).join(" ")}
             fill="none" stroke="var(--s1)" strokeWidth={2.5} strokeLinejoin="round" />
           <circle cx={x(pD(lastPt[0]))} cy={y(lastPt[1])} r={5} fill="var(--s1)" stroke="var(--surface)" strokeWidth={2}
-            data-tip={`${fmtS(lastPt[0])} · ${lastPt[1]} solved`} />
-          <text x={x(pD(lastPt[0])) + 9} y={y(lastPt[1]) - 8} className="lbl">{`You ${lastPt[1]}`}</text>
+            data-tip={t("{date} · {n} solved", { date: fmtS(lastPt[0]), n: lastPt[1] })} />
+          <text x={x(pD(lastPt[0])) + 9} y={y(lastPt[1]) - 8} className="lbl">{t("You {n}", { n: lastPt[1] })}</text>
           {pts.map(([ds, v]) => (
             <rect key={ds} x={x(pD(ds)) - colW / 2} y={T} width={colW} height={B - T} fill="transparent"
-              data-tip={`${fmtS(ds)} · ${v} total · plan ${Math.round((settings.goal * daysBetween(settings.start, ds)) / span)}`} />
+              data-tip={t("{date} · {n} total · plan {p}", { date: fmtS(ds), n: v, p: Math.round((settings.goal * daysBetween(settings.start, ds)) / span) })} />
           ))}
         </>
       )}
@@ -171,6 +159,7 @@ export function CumChart({ settings, phases, logs, today }: { settings: LaunchSe
 }
 
 export function DayBar({ schedule }: { schedule: SchedBlock[] }) {
+  const { t, lang } = useT();
   const W = 900, H = 86, L = 8, R = 892;
   const s0 = schedule[0].start, s1 = schedule[schedule.length - 1].start + schedule[schedule.length - 1].mins;
   const x = (m: number) => L + ((R - L) * (m - s0)) / (s1 - s0);
@@ -182,15 +171,26 @@ export function DayBar({ schedule }: { schedule: SchedBlock[] }) {
         <text x={x(h)} y={74} className="axis" textAnchor="middle">{hm(h)}</text>
       </g>,
     );
+  // Chinese glyphs are about twice as wide as the 6.4px Latin estimate.
+  const fits = (s: string, w: number) => (lang === "zh" ? textW(s) : s.length * 6.4) < w - 10;
+  const clip = (s: string, w: number) => {
+    let out = "";
+    for (const ch of s) {
+      if (!fits(out + ch + "…", w)) return out + "…";
+      out += ch;
+    }
+    return out;
+  };
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label="Today's study blocks laid out across the day">
+    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label={t("Today's study blocks laid out across the day")}>
       {schedule.map((b) => {
         const a = x(b.start) + 1, w = x(b.start + b.mins) - a - 1;
-        const label = b.k === "lc" ? "LeetCode" : b.title.length * 6.4 < w - 10 ? b.title : b.title.split(" ")[0];
+        const title = t(b.title), first = title.split(" ")[0];
+        const label = b.k === "lc" ? "LeetCode" : fits(title, w) ? title : lang === "zh" && !fits(first, w) ? clip(first, w) : first;
         return (
           <g key={b.start}>
             <rect x={a} y={10} width={Math.max(2, w)} height={38} rx={4} fill={KCOL[b.k]}
-              data-tip={`${hm(b.start)}–${hm(b.start + b.mins)} · ${b.title}${b.desc ? " — " + b.desc : ""}`} />
+              data-tip={`${hm(b.start)}–${hm(b.start + b.mins)} · ${title}${b.desc ? " — " + t(b.desc) : ""}`} />
             {b.k !== "brk" && w > 70 && (
               <text x={a + 6} y={33} style={{ font: "600 11.5px var(--f-body)", fill: "#fff", pointerEvents: "none" }}>{label}</text>
             )}
@@ -205,25 +205,33 @@ export function DayBar({ schedule }: { schedule: SchedBlock[] }) {
 type HBarRow = { en: string; cn?: string; v: number; color: string; tip?: string; cls?: string; label?: string };
 
 function HBars({ rows, max }: { rows: HBarRow[]; max: number }) {
+  const { t, lang } = useT();
   return (
     <div className="hbars">
-      {rows.map((r) => (
-        <div key={r.en} className="hb" data-tip={r.tip ?? `${r.en} ${r.cn ?? ""}: ${r.v}%`}>
-          <span className={"nm" + (r.cls ? " " + r.cls : "")}>
-            {r.en}
-            {r.cn && <span className="cn">{r.cn}</span>}
-          </span>
-          <div className="trk">
-            <div className="fill" style={{ width: `${(100 * r.v) / max}%`, background: r.color }} />
+      {rows.map((r) => {
+        // In Chinese the cn name says it all; in English it rides along after the English name.
+        const zh = lang === "zh";
+        const name = zh ? (r.cn ?? t(r.en)) : r.en;
+        const tip = r.tip ? t(r.tip) : zh ? `${name}: ${r.v}%` : `${r.en} ${r.cn ?? ""}: ${r.v}%`;
+        return (
+          <div key={r.en} className="hb" data-tip={tip}>
+            <span className={"nm" + (r.cls ? " " + r.cls : "")}>
+              {name}
+              {!zh && r.cn && <span className="cn">{r.cn}</span>}
+            </span>
+            <div className="trk">
+              <div className="fill" style={{ width: `${(100 * r.v) / max}%`, background: r.color }} />
+            </div>
+            <span className="v">{r.label ?? `${r.v}%`}</span>
           </div>
-          <span className="v">{r.label ?? `${r.v}%`}</span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 export function Tracks({ done }: { done: Set<string> }) {
+  const { t } = useT();
   const rows = TRACKS.map((tr) => {
     const its = ALL_ITEMS.filter((i) => i.track === tr.id);
     const n = its.filter((i) => done.has(i.id)).length;
@@ -233,7 +241,7 @@ export function Tracks({ done }: { done: Set<string> }) {
       color: tr.color,
       cls: tr.id,
       label: `${n}/${its.length}`,
-      tip: `${tr.name}: ${n} of ${its.length} items done`,
+      tip: t("{name}: {n} of {total} items done", { name: t(tr.name), n, total: its.length }),
     };
   });
   return <HBars rows={rows} max={100} />;
@@ -268,31 +276,32 @@ const TEN_GODS: HBarRow[] = [
 ];
 
 export function BaziPlate() {
+  const { t } = useT();
   return (
     <div className="split">
       <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
         <div className="pillars">
           {PILLARS.map(([ph, st, br, tg, hid, se, be]) => (
             <div key={ph} className={"pillar" + (st === "丁" ? " dm" : "")}>
-              <span className="ph">{ph}</span>
-              <span className="tg">{tg}</span>
-              <span className={"gz" + (se === "fire" ? " bad" : "")} data-tip={`Stem ${st} · ${se}`}>{st}</span>
-              <span className="el">{se}</span>
-              <span className={"gz" + (be === "fire" ? " bad" : "")} data-tip={`Branch ${br} · ${be} · hidden stems ${hid}`}>{br}</span>
-              <span className="el">{be}</span>
+              <span className="ph">{t(ph)}</span>
+              <span className="tg">{t(tg)}</span>
+              <span className={"gz" + (se === "fire" ? " bad" : "")} data-tip={t("Stem {s} · {el}", { s: st, el: t(se) })}>{st}</span>
+              <span className="el">{t(se)}</span>
+              <span className={"gz" + (be === "fire" ? " bad" : "")} data-tip={t("Branch {b} · {el} · hidden stems {hid}", { b: br, el: t(be), hid })}>{br}</span>
+              <span className="el">{t(be)}</span>
               <span className="hid">{hid}</span>
             </div>
           ))}
         </div>
-        <p className="cap">Four pillars, year to hour. The framed one is you, the Day Master 丁 fire. Each underline shows whether that element helps you.</p>
+        <p className="cap">{t("Four pillars, year to hour. The framed one is you, the Day Master 丁 fire. Each underline shows whether that element helps you.")}</p>
       </div>
       <div style={{ display: "grid", gap: 16, minWidth: 0 }}>
         <div>
-          <span className="label">Five elements · share of energy</span>
+          <span className="label">{t("Five elements · share of energy")}</span>
           <div style={{ marginTop: 8 }}><HBars rows={ELEMENTS} max={50} /></div>
         </div>
         <div>
-          <span className="label">Ten gods · share of energy</span>
+          <span className="label">{t("Ten gods · share of energy")}</span>
           <div style={{ marginTop: 8 }}><HBars rows={TEN_GODS} max={40} /></div>
         </div>
       </div>
@@ -322,39 +331,44 @@ const SAN_FANG = new Set(["酉", "卯", "巳", "丑"]); // life palace + its thr
 const ACTIVE_NOW = new Set(["未", "午"]);
 
 export function ZiweiGrid() {
+  const { t, lang } = useT();
   return (
     <div className="zwbox">
       <div className="zw">
-        {PALACES.map(([b, cn, en, maj, bor, mn, flags, r, c, tip]) => (
-          <div key={b} className={"zc" + (SAN_FANG.has(b) ? " sf" : "") + (ACTIVE_NOW.has(b) ? " now" : "")}
-            style={{ gridRow: r, gridColumn: c }} data-tip={`${en} ${cn} · ${b}${tip ? " — " + tip : ""}`}>
-            <div className="pn">
-              <span>{`${en} ${cn}`}</span>
-              <span className="br">{b}</span>
-            </div>
-            <div className="mj">
-              {maj.map(([s, h], i) => (
-                <span key={s}>
-                  {i ? " " : ""}
-                  {s}
-                  {h && <span className={"hua" + (h === "忌" ? " ji" : "")}>{h}</span>}
-                </span>
-              ))}
-              {bor && <span className="bor">{bor}</span>}
-            </div>
-            {mn && <div className="mn">{mn}</div>}
-            {flags.length > 0 && (
-              <div className="flags">
-                {flags.map((f) => <span key={f} className="flag">{f}</span>)}
+        {PALACES.map(([b, cn, en, maj, bor, mn, flags, r, c, tip]) => {
+          // The palace's Chinese name already says it in zh; English keeps both.
+          const name = lang === "zh" ? cn : `${en} ${cn}`;
+          return (
+            <div key={b} className={"zc" + (SAN_FANG.has(b) ? " sf" : "") + (ACTIVE_NOW.has(b) ? " now" : "")}
+              style={{ gridRow: r, gridColumn: c }} data-tip={`${name} · ${b}${tip ? " — " + t(tip) : ""}`}>
+              <div className="pn">
+                <span>{name}</span>
+                <span className="br">{b}</span>
               </div>
-            )}
-          </div>
-        ))}
+              <div className="mj">
+                {maj.map(([s, h], i) => (
+                  <span key={s}>
+                    {i ? " " : ""}
+                    {s}
+                    {h && <span className={"hua" + (h === "忌" ? " ji" : "")}>{h}</span>}
+                  </span>
+                ))}
+                {bor && <span className="bor">{bor}</span>}
+              </div>
+              {mn && <div className="mn">{mn}</div>}
+              {flags.length > 0 && (
+                <div className="flags">
+                  {flags.map((f) => <span key={f} className="flag">{t(f)}</span>)}
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div className="zcenter">
-          <span className="label">Zi Wei Dou Shu</span>
+          <span className="label">{t("Zi Wei Dou Shu")}</span>
           <span className="big">戊寅年 · 木三局</span>
-          <span className="mono">Life 酉 · Body 亥</span>
-          <span className="ev">Decade palace 未 runs 2020–2029. 2026&apos;s year palace is 午.</span>
+          <span className="mono">{t("Life 酉 · Body 亥")}</span>
+          <span className="ev">{t("Decade palace 未 runs 2020–2029. 2026's year palace is 午.")}</span>
         </div>
       </div>
     </div>
@@ -394,6 +408,7 @@ const ASPECTS: [string, string, string, number][] = [
 ];
 
 export function NatalWheel() {
+  const { t } = useT();
   const c = 260;
   const rad = (l: number) => ((180 + (l - ASC)) * Math.PI) / 180;
   const P = (l: number, r: number): [number, number] => [c + r * Math.cos(rad(l)), c - r * Math.sin(rad(l))];
@@ -407,7 +422,7 @@ export function NatalWheel() {
   }
   const om = (o: number) => `${Math.floor(o)}°${String(Math.round((o % 1) * 60)).padStart(2, "0")}′`;
   return (
-    <svg viewBox="0 0 520 520" className="viz" role="img" aria-label="Natal chart wheel: Virgo rising, Moon on the Midheaven">
+    <svg viewBox="0 0 520 520" className="viz" role="img" aria-label={t("Natal chart wheel: Virgo rising, Moon on the Midheaven")}>
       <circle cx={c} cy={c} r={246} className="w-ring" />
       <circle cx={c} cy={c} r={212} className="w-line" />
       <circle cx={c} cy={c} r={188} className="w-inner" />
@@ -417,7 +432,7 @@ export function NatalWheel() {
         return (
           <g key={s}>
             <line x1={a} y1={b} x2={a2} y2={b2} className="w-line" />
-            <text x={gx} y={gy} className="w-sign" textAnchor="middle" dominantBaseline="central" data-tip={s}>{SIGN_GLYPHS[i] + VS15}</text>
+            <text x={gx} y={gy} className="w-sign" textAnchor="middle" dominantBaseline="central" data-tip={t(s)}>{SIGN_GLYPHS[i] + VS15}</text>
           </g>
         );
       })}
@@ -433,17 +448,18 @@ export function NatalWheel() {
           </g>
         );
       })}
-      {([["AC", 156.53], ["IC", 245.0], ["DC", 336.53], ["MC", 65.0]] as const).map(([t, l]) => {
+      {([["AC", 156.53], ["IC", 245.0], ["DC", 336.53], ["MC", 65.0]] as const).map(([ax, l]) => {
         const [a, b] = P(l - 5, 74);
-        return <text key={t} x={a} y={b} className="w-ax" textAnchor="middle" dominantBaseline="central">{t}</text>;
+        return <text key={ax} x={a} y={b} className="w-ax" textAnchor="middle" dominantBaseline="central">{ax}</text>;
       })}
-      {ASPECTS.map(([a, b, t, o]) => {
+      {ASPECTS.map(([a, b, kind, o]) => {
         const [x1, y1] = P(pos[a].l, 122), [x2, y2] = P(pos[b].l, 122);
-        const hard = t === "opposite" || t === "square";
+        const hard = kind === "opposite" || kind === "square";
         return (
           <g key={a + b}>
             <line x1={x1} y1={y1} x2={x2} y2={y2} className={hard ? "w-hard" : "w-soft"} opacity={(1 - o / 6).toFixed(2)} />
-            <line x1={x1} y1={y1} x2={x2} y2={y2} className="w-hit" data-tip={`${a} ${t} ${b} · orb ${om(o)}`} />
+            <line x1={x1} y1={y1} x2={x2} y2={y2} className="w-hit"
+              data-tip={t("{a} {aspect} {b} · orb {orb}", { a: t(a), aspect: t(kind), b: t(b), orb: om(o) })} />
           </g>
         );
       })}
@@ -452,7 +468,7 @@ export function NatalWheel() {
         return (
           <g key={n}>
             <line x1={t1x} y1={t1y} x2={t2x} y2={t2y} className="w-tickp" />
-            <g className="w-pl" data-tip={`${n} · ${desc}`} style={{ cursor: "help" }}>
+            <g className="w-pl" data-tip={`${t(n)} · ${t(desc)}`} style={{ cursor: "help" }}>
               <circle cx={px} cy={py} r={13} />
               <text x={px} y={py + 1} textAnchor="middle" dominantBaseline="central">{gl + VS15}</text>
             </g>
@@ -485,12 +501,13 @@ const HITS: [string, string][] = [
 ];
 
 export function Gantt({ phases, today }: { phases: Phase[]; today: string }) {
+  const { t, lang, fmt } = useT();
   const W = 900, LB = 150, R = 888;
   const t0 = pD("2026-01-01"), t1 = pD("2029-01-01");
   const x = (d: Date) => LB + ((R - LB) * (d.getTime() - t0.getTime())) / (t1.getTime() - t0.getTime());
   const D = pD;
   const rows: [string, [Date, Date, string, BarStyle, string][]][] = [
-    ["Your plan", phases.map((p) => [D(p.start), nextDay(p.end), p.name, "plan", `${p.name} · ${fmt(p.start)} – ${fmt(p.end)}`])],
+    ["Your plan", phases.map((p) => [D(p.start), nextDay(p.end), p.name, "plan", `${t(p.name)} · ${fmt(p.start)} – ${fmt(p.end)}`])],
     ["BaZi luck pillar", [
       [t0, D("2028-04-01"), "庚申 正财 · steady wages", "neutral", "庚申 luck (Apr 2018 – Apr 2028): Direct Wealth. Turn skill into a paycheck."],
       [D("2028-04-01"), t1, "己未 食神 · craft", "good", "己未 luck (Apr 2028 – 2038): Eating God. Calm, sustained craft."],
@@ -514,7 +531,9 @@ export function Gantt({ phases, today }: { phases: Phase[]; today: string }) {
         <line x1={X} x2={X} y1={top - 6} y2={H - 24} className="gridl" />
         {d.getMonth() % 6 === 0 && (
           <text x={X} y={H - 8} className="axis" textAnchor={d < t1 ? "start" : "end"}>
-            {(d.getMonth() === 0 ? "Jan " : "Jul ") + d.getFullYear()}
+            {lang === "zh"
+              ? `${d.getFullYear()}年${d.getMonth() + 1}月`
+              : (d.getMonth() === 0 ? "Jan " : "Jul ") + d.getFullYear()}
           </text>
         )}
       </g>,
@@ -523,21 +542,22 @@ export function Gantt({ phases, today }: { phases: Phase[]; today: string }) {
   const yh = top + rows.length * RH + 11;
   const td = pD(today);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label="Timeline of luck periods and transits from 2026 to 2028">
+    <svg viewBox={`0 0 ${W} ${H}`} className="viz" role="img" aria-label={t("Timeline of luck periods and transits from 2026 to 2028")}>
       {quarters}
       {rows.map(([lab, bars], i) => {
         const y = top + i * RH;
         return (
           <g key={lab}>
-            <text x={0} y={y + 15} className="rowlbl">{lab}</text>
-            {bars.map(([a, b, t, st, tip]) => {
+            <text x={0} y={y + 15} className="rowlbl">{t(lab)}</text>
+            {bars.map(([a, b, key, st, tip]) => {
               const xa = Math.max(x(a), LB) + 1, xb = Math.min(x(b), R) - 1, w = xb - xa;
               const [f, s] = BAR_STYLE[st];
+              const lbl = t(key);
               return (
-                <g key={t}>
-                  <rect x={xa} y={y} width={w} height={22} rx={4} fill={f} stroke={s} strokeWidth={s === "none" ? 0 : 1.5} data-tip={tip} />
-                  {textW(t) + 12 < w && (
-                    <text x={xa + 7} y={y + 15} className="rowlbl" style={{ fontSize: 11.5, pointerEvents: "none" }}>{t}</text>
+                <g key={key}>
+                  <rect x={xa} y={y} width={w} height={22} rx={4} fill={f} stroke={s} strokeWidth={s === "none" ? 0 : 1.5} data-tip={t(tip)} />
+                  {textW(lbl) + 12 < w && (
+                    <text x={xa + 7} y={y + 15} className="rowlbl" style={{ fontSize: 11.5, pointerEvents: "none" }}>{lbl}</text>
                   )}
                 </g>
               );
@@ -545,21 +565,117 @@ export function Gantt({ phases, today }: { phases: Phase[]; today: string }) {
           </g>
         );
       })}
-      <text x={0} y={yh + 4} className="rowlbl">Exact hits</text>
+      <text x={0} y={yh + 4} className="rowlbl">{t("Exact hits")}</text>
       <line x1={LB} x2={R} y1={yh} y2={yh} className="tick" />
-      {HITS.map(([d, t]) => {
+      {HITS.map(([d, hit]) => {
         const X = x(D(d));
         return (
           <path key={d} d={`M${X} ${yh - 7} l7 7 l-7 7 l-7 -7z`} fill="var(--ink)" stroke="var(--surface)" strokeWidth={1.5}
-            data-tip={`${fmt(d)} · ${t}`} style={{ cursor: "help" }} />
+            data-tip={`${fmt(d)} · ${t(hit)}`} style={{ cursor: "help" }} />
         );
       })}
       {td >= t0 && td <= t1 && (
         <>
           <line x1={x(td)} x2={x(td)} y1={top - 14} y2={H - 24} className="today-line" />
-          <text x={x(td)} y={top - 18} className="today-txt" textAnchor="middle">Today</text>
+          <text x={x(td)} y={top - 18} className="today-txt" textAnchor="middle">{t("Today")}</text>
         </>
       )}
+    </svg>
+  );
+}
+
+// ---- Today: sprint heatmap, ring, sparkline -------------------------------------
+
+const HEAT = ["var(--empty)", "var(--h1)", "var(--h2)", "var(--h3)", "var(--h4)"];
+
+/** The whole sprint as a contribution-style grid: one column per week (Mon-Sun),
+ * shaded by new problems against the daily target. Today is outlined and days
+ * still ahead stay hollow, so the runway left is always visible. */
+export function Heatmap({ settings, phases, logs, today }: { settings: LaunchSettings; phases: Phase[]; logs: Record<string, DayLog>; today: string }) {
+  const { t, lang, fmtS } = useT();
+  const end = planEnd(phases);
+  const c = 24, gap = 4, step = c + gap, L = 34, T = 26;
+  const mon = addDays(settings.start, -((pD(settings.start).getDay() + 6) % 7));
+  const weeks = Math.ceil((daysBetween(mon, end) + 1) / 7);
+  const W = L + weeks * step + 6, H = T + 7 * step;
+  const col = (d: string) => Math.floor(daysBetween(mon, d) / 7);
+  const cells = [];
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = addDays(mon, i);
+    if (d < settings.start || d > end) continue;
+    const X = L + Math.floor(i / 7) * step, Y = T + (i % 7) * step;
+    const l = logs[d], ahead = d > today, isToday = d === today;
+    const tip = t("{date} · day {n}", { date: fmtS(d), n: daysBetween(settings.start, d) + 1 }) + " · " +
+      (l ? t("{n} new ({h} no hint) · {r} redo", { n: l.newCount, h: l.noHint, r: l.redo }) : ahead ? t("still ahead") : t("nothing logged"));
+    cells.push(
+      <rect key={d} x={X + 0.5} y={Y + 0.5} width={c - 1} height={c - 1} rx={4} data-tip={tip}
+        fill={ahead ? "none" : HEAT[heatLevel(l?.newCount ?? 0, settings.dailyNew)]}
+        stroke={isToday ? "var(--ink)" : ahead ? "var(--line)" : "none"} strokeWidth={isToday ? 2 : 1}
+        strokeDasharray={ahead && !isToday ? "3 2" : undefined} />,
+    );
+    const m = TL.find(([w]) => w === d);
+    if (m) cells.push(
+      <path key={d + "m"} d={`M${X + c / 2} ${Y + c / 2 - 5} l5 5 l-5 5 l-5 -5z`} fill="var(--warm)" stroke="var(--surface)"
+        strokeWidth={1} data-tip={`${fmtS(d)} · ${t(m[1])} (${t(m[2])})`} style={{ cursor: "help" }} />,
+    );
+  }
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="viz heat" role="img"
+      aria-label={t("Calendar of the sprint, one square per day, shaded by new problems solved")}>
+      {/* Weekdays are formatted by hand like dates (and "Sun" is also a planet key in zh/charts.ts). */}
+      {(lang === "zh" ? ["周一", "", "周三", "", "周五", "", "周日"] : ["Mon", "", "Wed", "", "Fri", "", "Sun"]).map((d, i) => d && (
+        <text key={d} x={0} y={T + i * step + 16} className="axis">{d}</text>
+      ))}
+      {phases.map((p, i) => {
+        const x1 = L + col(p.start) * step, x2 = L + col(p.end) * step + c;
+        const cur = today >= p.start && today <= p.end;
+        return (
+          <g key={p.id} data-tip={`${t(p.name)} · ${fmtS(p.start)} – ${fmtS(p.end)}`}>
+            <rect x={x1} y={4} width={x2 - x1} height={4} rx={2} fill={cur ? "var(--accent)" : "var(--line)"} />
+            <text x={x1} y={20} className={cur ? "today-txt" : "axis"}>{`P${i + 1}`}</text>
+          </g>
+        );
+      })}
+      {cells}
+    </svg>
+  );
+}
+
+/** Outer ring: problems solved against the goal. Inner ring: days used. */
+export function SprintRing({ solved, goal, dayN, totalDays }: { solved: number; goal: number; dayN: number; totalDays: number }) {
+  const { t } = useT();
+  const arc = (r: number, f: number, color: string, w: number) => {
+    const circ = 2 * Math.PI * r;
+    return (
+      <>
+        <circle cx={66} cy={66} r={r} fill="none" stroke="var(--empty)" strokeWidth={w} />
+        {f > 0 && (
+          <circle cx={66} cy={66} r={r} fill="none" stroke={color} strokeWidth={w} strokeLinecap="round"
+            strokeDasharray={`${(circ * Math.min(1, f)).toFixed(1)} ${circ.toFixed(1)}`} transform="rotate(-90 66 66)" />
+        )}
+      </>
+    );
+  };
+  return (
+    <svg viewBox="0 0 132 132" width={132} height={132} role="img" className="sprint-ring"
+      aria-label={t("{solved} of {goal} problems solved, day {n} of {total}", { solved, goal, n: dayN, total: totalDays })}>
+      <g data-tip={t("{solved} of {goal} problems solved", { solved, goal })}>{arc(56, solved / goal, "var(--s1)", 11)}</g>
+      <g data-tip={t("Day {n} of {total}", { n: dayN, total: totalDays })}>{arc(40, dayN / totalDays, "var(--muted)", 6)}</g>
+      <text x={66} y={68} textAnchor="middle" className="ring-big">{solved}</text>
+      <text x={66} y={86} textAnchor="middle" className="axis">{t("of {goal}", { goal })}</text>
+    </svg>
+  );
+}
+
+/** A tiny trend line with its last point marked. */
+export function Spark({ values, color }: { values: number[]; color: string }) {
+  const w = 72, h = 22, m = Math.max(1, ...values);
+  const y = (v: number) => (h - 3 - (v / m) * (h - 6)).toFixed(1);
+  const d = values.map((v, i) => `${i ? "L" : "M"}${((i * w) / (values.length - 1)).toFixed(1)} ${y(v)}`).join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="spark">
+      <path d={d} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <circle cx={w} cy={y(values[values.length - 1])} r={2.4} fill={color} />
     </svg>
   );
 }

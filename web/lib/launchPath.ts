@@ -126,3 +126,40 @@ export function logsFromDailyLog(
   }
   return out;
 }
+
+// ---- one-tap logging and the Today visuals ---------------------------------------
+
+/** The three one-tap counters on the Now card. */
+export type Tap = "noHint" | "hint" | "redo";
+
+const EMPTY_LOG: DayLog = { newCount: 0, noHint: 0, redo: 0, mocks: 0, hours: 0, note: "" };
+
+/** Apply one tap (+1) or undo (-1) to a day's log. "noHint" and "hint" both
+ * count a new problem; only "noHint" also counts toward the no-hint total. */
+export function bumpLog(log: DayLog | undefined, tap: Tap, delta: 1 | -1): DayLog {
+  const l = { ...EMPTY_LOG, ...log };
+  if (tap === "redo") l.redo += delta;
+  else {
+    // Undoing a hinted solve can't take away a no-hint one.
+    if (tap === "hint" && delta < 0 && l.newCount - 1 < l.noHint) return cleanLog(l);
+    l.newCount += delta;
+    if (tap === "noHint") l.noHint += delta;
+  }
+  return cleanLog(l);
+}
+
+/** Where the total lands on the last day if the average so far holds.
+ * `elapsed` counts today, so day 1 with 4 solved projects 4 per day. */
+export function projectTotal(solved: number, elapsed: number, totalDays: number): number {
+  if (elapsed <= 0) return solved;
+  return Math.round((solved / elapsed) * totalDays);
+}
+
+/** Heatmap shade 0-4 for a day's new problems against the daily target. */
+export function heatLevel(n: number, target: number): 0 | 1 | 2 | 3 | 4 {
+  if (n <= 0) return 0;
+  if (n >= target * 1.5) return 4;
+  if (n >= target) return 3;
+  if (n >= target / 2) return 2;
+  return 1;
+}
